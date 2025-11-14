@@ -1,0 +1,16 @@
+{
+  "who": {
+    "world_pm25_mean": 22.920319643806483,
+    "usa_pm25_mean": 8.844305135951663,
+    "california_pm25_mean": 10.708729281767956,
+    "california_no2_mean": 15.551603773584905
+  },
+  "cdc": {
+    "cdc_latest_year": 2013,
+    "measures": {
+      "83": "cdc_ozone_exceedance_days",
+      "86": "cdc_pm25_person_days",
+      "87": "cdc_pm25_annual_avg"
+    }
+  }
+}

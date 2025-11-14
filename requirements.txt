@@ -1,0 +1,11 @@
+pandas
+numpy
+requests
+streamlit
+folium
+streamlit-folium
+scikit-learn
+shapely
+tqdm
+pydeck
+openpyxl
