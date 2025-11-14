@@ -1,6 +1,6 @@
 # StatAtlas
 
-StatAtlas is a California-focused environmental intelligence platform. It blends CalEnviroScreen 4.0 polygons, ACS commute behavior (walkability / car-dependency proxy), FEMA National Risk Index scores, CDC air-quality metrics, WHO context, and lightweight machine learning to surface actionable insights for residents, researchers, and policy makers.
+StatAtlas is a California-focused environmental intelligence platform. It blends CalEnviroScreen 4.0 polygons, ACS commute behavior (walkability / car-dependency proxy), FEMA National Risk Index scores, CDC air-quality metrics, WHO context, and lightweight machine learning.
 
 ## Features
 - **FastAPI backend (`backend/main.py`)** – exposes `/api/health`, `/api/tracts`, `/api/summary`, and `/api/recommendations`, suitable for any web/mobile client.
@@ -43,14 +43,14 @@ docker compose up --build
 ```
 
 ## Data sources
-| Theme | Dataset | Notes |
-| --- | --- | --- |
-| Pollution, health burden | [CalEnviroScreen 4.0 Results](https://data.ca.gov/dataset/calenviroscreen-4-0-results) via ArcGIS REST API | Tract-level pollution burden, socioeconomic, and demographic indicators. |
-| Historical comparison | [CalEnviroScreen 3.0 Results](https://data.ca.gov/dataset/calenviroscreen-3-0-results) CSV | Enables CES 4.0 − CES 3.0 delta analysis per tract. |
-| Walkability / car dependence | [ACS 2022 5-year (table B08301)](https://api.census.gov/data/2022/acs/acs5/groups/B08301.html) | Commute mode shares (drive-alone, transit, bike, walk, WFH). |
-| Hazard & resilience | [FEMA National Risk Index](https://hazards.fema.gov/nri/data-resources#csvDownload) | Adds FEMA risk, resilience, wildfire risk, etc., for each tract. |
-| Air quality exceedances | [CDC Tracking Network air quality measures (cjae-szjv)](https://data.cdc.gov/Environmental-Health-Toxicology/Air-Quality-Measures-on-the-National-Environmental-H/cjae-szjv) | Latest monitor-only ozone & PM2.5 exceedance stats per county. |
-| Global context | [WHO Air Quality Database 2022](https://www.who.int/data/gho/data/themes/air-pollution/who-air-quality-database/2022) | Supplies California-wide PM2.5 / NO₂ averages for benchmarking. |
+| Theme | Dataset |
+| --- | --- | 
+| Pollution, health burden | [CalEnviroScreen 4.0 Results](https://data.ca.gov/dataset/calenviroscreen-4-0-results) via ArcGIS REST API | 
+| Historical comparison | [CalEnviroScreen 3.0 Results](https://data.ca.gov/dataset/calenviroscreen-3-0-results) CSV | 
+| Walkability / car dependence | [ACS 2022 5-year (table B08301)](https://api.census.gov/data/2022/acs/acs5/groups/B08301.html) | 
+| Hazard & resilience | [FEMA National Risk Index](https://hazards.fema.gov/nri/data-resources#csvDownload) | 
+| Air quality exceedances | [CDC Tracking Network air quality measures (cjae-szjv)](https://data.cdc.gov/Environmental-Health-Toxicology/Air-Quality-Measures-on-the-National-Environmental-H/cjae-szjv) | 
+| Global context | [WHO Air Quality Database 2022](https://www.who.int/data/gho/data/themes/air-pollution/who-air-quality-database/2022) |
 
 ### Walkability & quality-of-life scoring
 1. **Walkability index** = 0.4·(walk + bike share) + 0.4·(public transit share) + 0.2·(work-from-home share).  
@@ -86,20 +86,3 @@ docker compose up --build
 - `uvicorn backend.main:app --reload` launches a production-ready API with `/api/health`, `/api/tracts`, `/api/summary`, and `/api/recommendations`.
 - The backend reuses the same recommendation engine as the Streamlit UI and powers the React SPA.
 
-## Operational notes
-- `build_dataset.py` paginates ArcGIS (2,000 records per request) to fetch the full CalEnviroScreen layer reliably.
-- Processed GeoJSON stays lightweight; dense columns remain in Parquet for analytics and the FastAPI service.
-- Streamlit + FastAPI guard against missing processed files, guiding contributors to run the pipeline first.
-- `python -m py_compile src/data_pipeline/build_dataset.py src/app.py backend/main.py` offers a quick sanity check.
-- Quality-of-life scoring now uses a native helper (`src/c_extensions/qol_scores.c`) auto-compiled to `build/libqol_scores.*`.
-
-## Roadmap ideas
-1. **Climate + hazard layers** – merge FEMA NRI, NOAA flood/heat indices, Cal Fire wildfire perimeters, and NASA imagery into extra map toggles.
-2. **Quality-of-life narratives** – use HuggingFace summarization models to auto-generate localized context (landmarks, historical incidents) per tract.
-3. **Time-aware metrics** – support year-over-year comparisons (CalEnviroScreen 3.0 vs 4.0, AQ trends from WHO, EPA AirNow, etc.).
-4. **Citizen science hooks** – add a data intake form/API so residents can submit localized observations or uploads (photos, annotations).
-5. **Full web transition** – enhance the new React front-end with routing, authentication, and map visualizations to replace Streamlit entirely.
-6. **Global expansion** – replicate the same pipeline for other states/countries by swapping the ACS step with international commute/walkability proxies.
-
----
-Built with ❤️ by the StatAtlas team (San José State University · Department of Computer Science).
