@@ -563,7 +563,7 @@ def main() -> None:
                         "personalized_score": "{:.3f}",
                     }
                 ),
-                use_container_width=True,
+                width="stretch",
             )
             top_pick = recommendations.iloc[0]
             st.success(
