@@ -7,3 +7,5 @@ __pycache__/
 .streamlit/
 data/raw/
 *.log
+build/
+frontend/node_modules/

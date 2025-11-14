@@ -9,3 +9,5 @@ shapely
 tqdm
 pydeck
 openpyxl
+fastapi
+uvicorn

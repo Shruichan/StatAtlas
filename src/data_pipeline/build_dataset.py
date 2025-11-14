@@ -3,9 +3,14 @@
 from __future__ import annotations
 
 import argparse
+import ctypes
 import json
+import math
+import platform
+import shutil
+import subprocess
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Any, Dict, List, Tuple
 from zipfile import ZipFile
 
 import numpy as np
@@ -22,6 +27,10 @@ from tqdm import tqdm
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 RAW_DIR = PROJECT_ROOT / "data" / "raw"
 PROCESSED_DIR = PROJECT_ROOT / "data" / "processed"
+BUILD_DIR = PROJECT_ROOT / "build"
+C_EXTENSION_DIR = PROJECT_ROOT / "src" / "c_extensions"
+QOL_SRC = C_EXTENSION_DIR / "qol_scores.c"
+CACHE_DIR = PROCESSED_DIR / "cache"
 
 CALENVIROSCREEN_URL = (
     "https://services1.arcgis.com/PCHfdHz4GlDNAhBb/arcgis/rest/services/"
@@ -95,6 +104,7 @@ ACS_FIELDS = [
 COMMUTE_KEEP_COLUMNS = [
     "geoid",
     "county_name",
+    "county_fips",
     "drive_alone_share",
     "public_transit_share",
     "bike_share",
@@ -112,10 +122,102 @@ CDC_MEASURE_MAP = {
     "87": "cdc_pm25_annual_avg",
 }
 
+_QOL_LIB = None
+
+
+def _shared_lib_suffix() -> str:
+    system = platform.system().lower()
+    if "darwin" in system:
+        return "dylib"
+    if "windows" in system:
+        return "dll"
+    return "so"
+
+
+def ensure_qol_shared_lib() -> Path:
+    """Compile the quality-of-life helper C library if needed."""
+    if not QOL_SRC.exists():
+        raise FileNotFoundError(f"C extension source missing at {QOL_SRC}")
+    BUILD_DIR.mkdir(parents=True, exist_ok=True)
+    suffix = _shared_lib_suffix()
+    lib_path = BUILD_DIR / f"libqol_scores.{suffix}"
+    if lib_path.exists() and lib_path.stat().st_mtime >= QOL_SRC.stat().st_mtime:
+        return lib_path
+    compiler = shutil.which("gcc")
+    if compiler is None:
+        raise RuntimeError("gcc compiler not available on PATH")
+    cmd = [
+        compiler,
+        "-shared",
+        "-O3",
+        "-std=c99",
+        "-fPIC",
+        "-o",
+        str(lib_path),
+        str(QOL_SRC),
+    ]
+    if suffix == "dll":
+        cmd = [compiler, "-shared", "-O3", "-o", str(lib_path), str(QOL_SRC)]
+    subprocess.run(cmd, check=True)
+    return lib_path
+
+
+def get_qol_lib() -> ctypes.CDLL | None:
+    """Load (or compile then load) the native scoring helper."""
+    global _QOL_LIB
+    if _QOL_LIB is not None:
+        return _QOL_LIB
+    try:
+        lib_path = ensure_qol_shared_lib()
+    except Exception:
+        return None
+    lib = ctypes.CDLL(str(lib_path))
+    lib.compute_quality_scores.argtypes = [
+        ctypes.POINTER(ctypes.c_double),
+        ctypes.POINTER(ctypes.c_double),
+        ctypes.c_size_t,
+        ctypes.c_size_t,
+        ctypes.POINTER(ctypes.c_double),
+    ]
+    _QOL_LIB = lib
+    return _QOL_LIB
+
+
+def accelerated_quality_scores(
+    matrix: np.ndarray, weights: np.ndarray
+) -> np.ndarray | None:
+    """Use the native helper to compute weighted sums if possible."""
+    lib = get_qol_lib()
+    if lib is None:
+        return None
+    n_samples, n_features = matrix.shape
+    out = np.empty(n_samples, dtype=np.float64)
+    lib.compute_quality_scores(
+        matrix.ctypes.data_as(ctypes.POINTER(ctypes.c_double)),
+        weights.ctypes.data_as(ctypes.POINTER(ctypes.c_double)),
+        ctypes.c_size_t(n_samples),
+        ctypes.c_size_t(n_features),
+        out.ctypes.data_as(ctypes.POINTER(ctypes.c_double)),
+    )
+    return out
+
 
 def ensure_dirs() -> None:
     RAW_DIR.mkdir(parents=True, exist_ok=True)
     PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
+    CACHE_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def clean_json_ready(obj: Any) -> Any:
+    if isinstance(obj, dict):
+        return {k: clean_json_ready(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [clean_json_ready(v) for v in obj]
+    if isinstance(obj, float):
+        if not np.isfinite(obj):
+            return None
+        return float(obj)
+    return obj
 
 
 def download_file(url: str, dest: Path) -> None:
@@ -186,6 +288,7 @@ def fetch_acs_commute() -> pd.DataFrame:
 
     df["geoid"] = df["state"] + df["county"] + df["tract"]
     df["county_name"] = df["NAME"].str.split(";").str[1].str.strip()
+    df["county_fips"] = df["geoid"].astype(str).str[:5]
 
     total = df["B08301_001E"].replace({0: np.nan})
     df["drive_alone_share"] = df["B08301_003E"] / total
@@ -367,7 +470,17 @@ def build_features(
     merged = merged.merge(fema_df, on="geoid", how="left")
     merged = merged.merge(ces3_df, on="geoid", how="left")
 
-    merged["county_fips"] = merged["geoid"].str[:5]
+    if "county_fips" not in merged.columns:
+        merged["county_fips"] = merged["geoid"].astype(str).str[:5]
+    county_lookup = (
+        commute_df.drop_duplicates("county_fips")
+        .set_index("county_fips")["county_name"]
+        .to_dict()
+    )
+    merged["county_name"] = merged["county_name"].fillna(
+        merged["county_fips"].map(county_lookup)
+    )
+    merged["county_name"] = merged["county_name"].fillna("Unknown County")
     if not cdc_df.empty:
         merged = merged.merge(cdc_df, on="county_fips", how="left")
     merged["ces_score_delta"] = merged["CIscore"] - merged["ces3_score"]
@@ -410,10 +523,17 @@ def build_features(
         "asthma_norm": 0.04,
         "pov_norm": 0.04,
     }
-    merged["quality_of_life_score"] = 0.0
-    for col, weight in weights.items():
-        if col in merged:
-            merged["quality_of_life_score"] += merged[col] * weight
+    for col in weights:
+        if col not in merged:
+            merged[col] = 0.0
+    qol_cols = list(weights.keys())
+    qol_matrix = merged[qol_cols].fillna(0.0).to_numpy(dtype=np.float64, copy=True)
+    weight_vector = np.array([weights[col] for col in qol_cols], dtype=np.float64)
+    native_scores = accelerated_quality_scores(qol_matrix, weight_vector)
+    if native_scores is not None:
+        merged["quality_of_life_score"] = native_scores
+    else:
+        merged["quality_of_life_score"] = qol_matrix.dot(weight_vector)
 
     feature_cols = [
         "PollutionScore",
@@ -522,10 +642,52 @@ def export_outputs(df: pd.DataFrame) -> None:
 
     geojson_doc = {"type": "FeatureCollection", "features": geojson_features}
     geojson_path = PROCESSED_DIR / "statatlas.geojson"
-    geojson_path.write_text(json.dumps(geojson_doc))
+    geojson_path.write_text(json.dumps(clean_json_ready(geojson_doc)))
 
     table_path = PROCESSED_DIR / "statatlas_features.parquet"
     df.drop(columns=["geometry"], errors="ignore").to_parquet(table_path, index=False)
+
+    cached_stats = {
+        "aggregates": {
+            "avg_walkability": float(df["walkability_index"].mean()),
+            "avg_nri_risk": float(df["nri_risk_score"].mean()),
+            "avg_resilience": float(df["nri_resilience_score"].mean()),
+            "avg_pollution": float(df["PollutionScore"].mean()),
+            "avg_quality": float(df["quality_of_life_score"].mean()),
+            "avg_ozone_days": float(df["cdc_ozone_exceedance_days"].mean()),
+            "avg_pm25_days": float(df["cdc_pm25_person_days"].mean()),
+        },
+        "counties": (
+            df.groupby("county_name")
+            .agg(
+                tracts=("geoid", "count"),
+                avg_quality=("quality_of_life_score", "mean"),
+                avg_walkability=("walkability_index", "mean"),
+                avg_risk=("nri_risk_score", "mean"),
+                avg_resilience=("nri_resilience_score", "mean"),
+                avg_pollution=("PollutionScore", "mean"),
+                avg_ozone=("cdc_ozone_exceedance_days", "mean"),
+                avg_pm25=("cdc_pm25_person_days", "mean"),
+                population=("ACS2019TotalPop", "sum"),
+            )
+            .reset_index()
+            .to_dict(orient="records")
+        ),
+        "clusters": (
+            df.groupby("cluster_label")
+            .agg(
+                tracts=("geoid", "count"),
+                avg_quality=("quality_of_life_score", "mean"),
+                avg_pollution=("PollutionScore", "mean"),
+                avg_walkability=("walkability_index", "mean"),
+                avg_risk=("nri_risk_score", "mean"),
+                avg_resilience=("nri_resilience_score", "mean"),
+            )
+            .reset_index()
+            .to_dict(orient="records")
+        ),
+    }
+    (CACHE_DIR / "summary.json").write_text(json.dumps(clean_json_ready(cached_stats), indent=2))
 
 
 def export_metadata(context: Dict[str, Dict[str, float]]) -> None:
