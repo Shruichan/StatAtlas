@@ -21,6 +21,7 @@ GEOJSON_PATH = DATA_DIR / "statatlas.geojson"
 FEATURES_PATH = DATA_DIR / "statatlas_features.parquet"
 CLUSTER_PATH = DATA_DIR / "cluster_profiles.json"
 METADATA_PATH = DATA_DIR / "insight_metadata.json"
+CALIFORNIA_BOUNDS = [[32.0, -125.0], [42.5, -113.5]]
 
 METRICS = {
     "quality_of_life_score": {
