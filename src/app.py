@@ -161,7 +161,13 @@ def render_map(df: pd.DataFrame, geojson_doc: Dict, metric: str) -> None:
 
     geojson_subset = subset_geojson(geojson_doc, df_metric["geoid"])
 
-    m = folium.Map(location=[37.25, -119.5], zoom_start=5.4, tiles="cartodbpositron")
+    m = folium.Map(
+        location=[37.25, -119.5],
+        zoom_start=5.8,
+        tiles="cartodbpositron",
+        max_bounds=True,
+    )
+    m.fit_bounds(CALIFORNIA_BOUNDS)
     folium.Choropleth(
         geo_data=geojson_subset,
         name=metric_info["label"],
@@ -237,6 +243,19 @@ def summarize_key_metrics(df: pd.DataFrame) -> None:
             slot.metric(label, "n/a")
         else:
             slot.metric(label, fmt.format(value))
+    with st.expander("How do these stats relate to quality of life?", expanded=False):
+        st.markdown(
+            """
+            - **Walkability & non-auto share** show how easy it is to travel without a car; higher values typically
+              mean better access to services and healthier commutes.
+            - **FEMA risk/resilience** scores compare each tract's exposure to hazards (wildfire, drought, storms) and
+              ability to bounce back after disasters.
+            - **CDC ozone & PM2.5 metrics** indicate how often air quality exceeded federal standards in the latest
+              monitor-only dataset.
+            - **PM2.5 gap vs WHO** highlights where local particulate matter deviates from the statewide WHO city average;
+              positive numbers mean dirtier air than the California benchmark.
+            """
+        )
 
 
 def apply_range_filter(df: pd.DataFrame, column: str, value_range: Tuple[float, float]) -> pd.DataFrame:
@@ -301,7 +320,7 @@ def render_cluster_profiles(df: pd.DataFrame, profiles: pd.DataFrame) -> None:
                 "avg_resilience": "{:.1f}",
             }
         ),
-        use_container_width=True,
+        width="stretch",
     )
     if not profiles.empty:
         pretty = profiles.rename(
@@ -329,7 +348,7 @@ def render_cluster_profiles(df: pd.DataFrame, profiles: pd.DataFrame) -> None:
             "FEMA Resilience": "{:.1f}",
             "CDC Ozone Days": "{:.1f}",
         }
-        st.dataframe(pretty.style.format(formatting), use_container_width=True)
+        st.dataframe(pretty.style.format(formatting), width="stretch")
         st.caption(
             "Cluster centroids derived from the K-Means model across pollution, walkability, asthma, poverty, and composite CalEnviroScreen scores."
         )
@@ -350,46 +369,51 @@ def main() -> None:
     )
 
     sidebar = st.sidebar
-    sidebar.header("Map Filters")
+    sidebar.title("Explore California")
+    sidebar.caption("StatAtlas currently focuses on California census tracts; data layers outside CA are hidden.")
 
-    county_selection = sidebar.multiselect(
-        "Counties",
-        options=county_options(df),
-        default=[],
-        help="Narrow the map to specific counties.",
-    )
-    cluster_choices = sorted(df["cluster_label"].dropna().unique().tolist())
-    cluster_filter = sidebar.multiselect(
-        "Cluster labels",
-        options=cluster_choices,
-        default=[],
-    )
-    quality_range = sidebar.slider(
-        "Quality-of-life score",
-        min_value=0.0,
-        max_value=1.0,
-        value=(0.0, 1.0),
-        step=0.05,
-    )
-    risk_range = sidebar.slider(
-        "FEMA NRI risk score",
-        min_value=0.0,
-        max_value=100.0,
-        value=(0.0, 100.0),
-        step=1.0,
-    )
-    resilience_range = sidebar.slider(
-        "FEMA resilience score",
-        min_value=0.0,
-        max_value=100.0,
-        value=(0.0, 100.0),
-        step=1.0,
-    )
-    metric_key = sidebar.selectbox(
-        "Map metric",
-        options=list(METRICS.keys()),
-        format_func=lambda key: METRICS[key]["label"],
-    )
+    with sidebar.expander("Geography filters", expanded=True):
+        county_selection = st.multiselect(
+            "Counties",
+            options=county_options(df),
+            default=[],
+            help="Narrow the map to specific counties.",
+        )
+        cluster_choices = sorted(df["cluster_label"].dropna().unique().tolist())
+        cluster_filter = st.multiselect(
+            "Cluster labels",
+            options=cluster_choices,
+            default=[],
+        )
+    with sidebar.expander("Quality & risk thresholds", expanded=True):
+        quality_range = st.slider(
+            "Quality-of-life score",
+            min_value=0.0,
+            max_value=1.0,
+            value=(0.0, 1.0),
+            step=0.05,
+        )
+        risk_range = st.slider(
+            "FEMA NRI risk score",
+            min_value=0.0,
+            max_value=100.0,
+            value=(0.0, 100.0),
+            step=1.0,
+        )
+        resilience_range = st.slider(
+            "FEMA resilience score",
+            min_value=0.0,
+            max_value=100.0,
+            value=(0.0, 100.0),
+            step=1.0,
+        )
+    with sidebar.expander("Display options", expanded=True):
+        metric_key = st.selectbox(
+            "Map metric",
+            options=list(METRICS.keys()),
+            format_func=lambda key: METRICS[key]["label"],
+        )
+        st.write(METRICS[metric_key]["description"])
 
     filtered = df.copy()
     if county_selection:
