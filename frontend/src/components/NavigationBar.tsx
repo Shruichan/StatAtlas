@@ -1,10 +1,11 @@
 import { useState, useMemo } from 'react';
+import { NavLink, useNavigate } from 'react-router-dom';
 import type { Tract } from '../api';
 import '../styles.css'
 interface NavigationBarProps {
     brandName: string;
     imageSrcPath: string;
-    navItems: string[];
+    navItems: typeof NavLink[];
     tracts?: Tract[];
     onSelectTract?: (tract: Tract) => void;
 }
