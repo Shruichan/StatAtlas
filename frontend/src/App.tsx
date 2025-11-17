@@ -14,6 +14,9 @@ import {
 } from "./api";
 import { MapView } from "./MapView";
 import type { FeatureProperties } from "./types";
+import { NavigationBar } from "./components/NavigationBar";
+import 'bootstrap/dist/css/bootstrap.css'
+import imagePath from './assets/logo-unsplash-olivier.jpg'
 
 const defaultWeights: Record<string, number> = {
   walkability_index_norm: 3.5,
@@ -75,10 +78,11 @@ export default function App() {
       setLoading(true);
       try {
         const [tractList, summaryData, geojsonData] = await Promise.all([
-          fetchTracts(200),
+          fetchTracts(5000, 0),
           fetchSummary(),
           fetchGeojson(),
         ]);
+
         if (!mounted) return;
         setTracts(tractList);
         setSummary(summaryData.aggregates ?? {});
@@ -222,6 +226,7 @@ export default function App() {
     [],
   );
 
+  let items = ["Home", "About", "Contact"];
   return (
     <div className="container">
       <header>
@@ -230,6 +235,16 @@ export default function App() {
           FastAPI + React preview. Data courtesy of CalEnviroScreen, FEMA, CDC Tracking, WHO, and ACS.
         </p>
       </header>
+      <div><NavigationBar
+        brandName="StatAtlas"
+        imageSrcPath={imagePath}
+        navItems={items}
+        tracts={tracts}
+        onSelectTract={(tract) => handleFeatureSelect({ geoid: tract.geoid, county_name: tract.county_name, walkability_index: tract.walkability_index, nri_risk_score: tract.nri_risk_score, nri_resilience_score: tract.nri_resilience_score, PollutionScore: tract.PollutionScore, quality_of_life_score: tract.quality_of_life_score, cluster_label: tract.cluster_label })}>
+      </NavigationBar>
+      </div>
+
+
 
       {errorMessage && (
         <div className="alert error" role="status">

@@ -1,11 +1,11 @@
 """FastAPI backend for StatAtlas."""
 
 from __future__ import annotations
-
 from functools import lru_cache
 from pathlib import Path
 from typing import Dict, List, Optional
 import json
+from fastapi.encoders import jsonable_encoder
 
 import numpy as np
 import pandas as pd
@@ -38,31 +38,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-
-def clean_for_json(obj):
-    if isinstance(obj, dict):
-        return {k: clean_for_json(v) for k, v in obj.items()}
-    if isinstance(obj, list):
-        return [clean_for_json(v) for v in obj]
-    if isinstance(obj, float):
-        if not np.isfinite(obj):
-            return None
-        return float(obj)
-    return obj
-
-
-def clean_for_json(obj):
-    if isinstance(obj, dict):
-        return {k: clean_for_json(v) for k, v in obj.items()}
-    if isinstance(obj, list):
-        return [clean_for_json(v) for v in obj]
-    if isinstance(obj, float):
-        if not np.isfinite(obj):
-            return None
-        return float(obj)
-    return obj
-
 
 @lru_cache(maxsize=1)
 def load_dataset() -> pd.DataFrame:
@@ -110,7 +85,7 @@ def health() -> Dict[str, str]:
 
 
 @app.get("/api/tracts")
-def tracts(limit: int = Query(100, ge=1, le=500), offset: int = Query(0, ge=0)) -> Dict:
+def tracts(limit: int = Query(100, ge=1, le=1000000), offset: int = Query(0, ge=0)) -> Dict:
     df = load_dataset()
     subset = df.iloc[offset : offset + limit]
     columns = [
@@ -127,7 +102,7 @@ def tracts(limit: int = Query(100, ge=1, le=500), offset: int = Query(0, ge=0)) 
     subset = subset.replace([np.inf, -np.inf], np.nan).fillna(0)
     return {
         "total": int(len(df)),
-        "results": clean_for_json(subset[columns].to_dict(orient="records")),
+        "results": jsonable_encoder(subset[columns].to_dict(orient="records")),
     }
 
 
@@ -137,7 +112,7 @@ def summary() -> Dict:
     meta = load_metadata()
     cached = load_cached_summary()
     if cached:
-        return clean_for_json(
+        return jsonable_encoder(
             {
                 "aggregates": cached.get("aggregates", {}),
                 "metadata": meta,
@@ -151,13 +126,13 @@ def summary() -> Dict:
         "avg_resilience": float(df["nri_resilience_score"].mean()),
         "avg_pollution": float(df["PollutionScore"].mean()),
     }
-    return clean_for_json({"aggregates": aggregates, "metadata": meta})
+    return jsonable_encoder({"aggregates": aggregates, "metadata": meta})
 
 
 @app.get("/api/geojson")
 def geojson() -> JSONResponse:
     data = load_geojson()
-    return JSONResponse(content=clean_for_json(data))
+    return JSONResponse(content=jsonable_encoder(data))
 
 
 @app.post("/api/recommendations")
@@ -177,4 +152,4 @@ def recommendations(payload: RecommendationPayload) -> Dict:
         "PollutionScore",
         "personalized_score",
     ]
-    return {"results": clean_for_json(recs[columns].to_dict(orient="records"))}
+    return {"results": jsonable_encoder(recs[columns].to_dict(orient="records"))}
