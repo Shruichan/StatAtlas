@@ -55,7 +55,9 @@ function toNumber(value: unknown): number | null {
 }
 
 
-export function HomePage() {
+export function HomePage(props: { tracts: Tract[], loading: boolean, geojson: GeoJsonObject | null,
+   summary: SummaryResponse["aggregates"], countyStats: CountyStat[], clusterStats: ClusterStat[], 
+   metadata?: SummaryResponse["metadata"], onSelectFeature: (featureProps: FeatureProperties) => void, selectedFeature: FeatureProperties | null }) {
   const [tracts, setTracts] = useState<Tract[]>([]);
   const [summary, setSummary] = useState<SummaryResponse["aggregates"]>({});
   const [metadata, setMetadata] = useState<SummaryResponse["metadata"]>();

@@ -1,11 +1,11 @@
 import { useState, useEffect } from "react";
 
-interface Statistic {
+export interface Statistic {
   label: string;
-  value: number | null;
+  value: number | string |null;
   format: (val: number) => string;
   description: string;
-  getColor?: (val: number) => "good" | "caution" | "concern";
+  getColor?: (val: number) => "Good" | "Caution" | "Concern";
 }
 
 interface StatisticsCarouselProps {
