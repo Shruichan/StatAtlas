@@ -95,9 +95,17 @@ def tracts(limit: int = Query(100, ge=1, le=1000000), offset: int = Query(0, ge=
         "cluster_label",
         "walkability_index",
         "non_auto_share",
+        "drive_alone_share",
+        "public_transit_share",
+        "active_commute_share",
+        "work_from_home_share",
+        "car_dependency_index",
         "nri_risk_score",
         "nri_resilience_score",
         "PollutionScore",
+        "cdc_ozone_exceedance_days",
+        "cdc_pm25_person_days",
+        "cdc_pm25_annual_avg",
     ]
     subset = subset.replace([np.inf, -np.inf], np.nan).fillna(0)
     return {
@@ -125,8 +133,62 @@ def summary() -> Dict:
         "avg_nri_risk": float(df["nri_risk_score"].mean()),
         "avg_resilience": float(df["nri_resilience_score"].mean()),
         "avg_pollution": float(df["PollutionScore"].mean()),
+        "avg_quality": float(df["quality_of_life_score"].mean()),
+        "avg_ozone_days": float(df["cdc_ozone_exceedance_days"].mean()),
+        "avg_pm25_days": float(df["cdc_pm25_person_days"].mean()),
+        "avg_non_auto_share": float(df["non_auto_share"].mean()),
+        "avg_drive_alone_share": float(df["drive_alone_share"].mean()),
+        "avg_transit_share": float(df["public_transit_share"].mean()),
+        "avg_active_commute_share": float(df["active_commute_share"].mean()),
+        "avg_work_from_home_share": float(df["work_from_home_share"].mean()),
     }
-    return jsonable_encoder({"aggregates": aggregates, "metadata": meta})
+    county_stats = (
+        df.groupby("county_name")
+        .agg(
+            tracts=("geoid", "count"),
+            avg_quality=("quality_of_life_score", "mean"),
+            avg_walkability=("walkability_index", "mean"),
+            avg_risk=("nri_risk_score", "mean"),
+            avg_resilience=("nri_resilience_score", "mean"),
+            avg_pollution=("PollutionScore", "mean"),
+            avg_ozone=("cdc_ozone_exceedance_days", "mean"),
+            avg_pm25=("cdc_pm25_person_days", "mean"),
+            population=("ACS2019TotalPop", "sum"),
+            avg_non_auto_share=("non_auto_share", "mean"),
+            avg_drive_alone_share=("drive_alone_share", "mean"),
+            avg_transit_share=("public_transit_share", "mean"),
+            avg_active_commute_share=("active_commute_share", "mean"),
+            avg_work_from_home_share=("work_from_home_share", "mean"),
+        )
+        .reset_index()
+        .to_dict(orient="records")
+    )
+    cluster_stats = (
+        df.groupby("cluster_label")
+        .agg(
+            tracts=("geoid", "count"),
+            avg_quality=("quality_of_life_score", "mean"),
+            avg_pollution=("PollutionScore", "mean"),
+            avg_walkability=("walkability_index", "mean"),
+            avg_risk=("nri_risk_score", "mean"),
+            avg_resilience=("nri_resilience_score", "mean"),
+            avg_non_auto_share=("non_auto_share", "mean"),
+            avg_drive_alone_share=("drive_alone_share", "mean"),
+            avg_transit_share=("public_transit_share", "mean"),
+            avg_active_commute_share=("active_commute_share", "mean"),
+            avg_work_from_home_share=("work_from_home_share", "mean"),
+        )
+        .reset_index()
+        .to_dict(orient="records")
+    )
+    return jsonable_encoder(
+        {
+            "aggregates": aggregates,
+            "metadata": meta,
+            "counties": county_stats,
+            "clusters": cluster_stats,
+        }
+    )
 
 
 @app.get("/api/geojson")
@@ -147,9 +209,16 @@ def recommendations(payload: RecommendationPayload) -> Dict:
         "quality_of_life_score",
         "walkability_index",
         "non_auto_share",
+        "drive_alone_share",
+        "public_transit_share",
+        "active_commute_share",
+        "work_from_home_share",
         "nri_risk_score",
         "nri_resilience_score",
         "PollutionScore",
+        "cdc_ozone_exceedance_days",
+        "cdc_pm25_person_days",
+        "cdc_pm25_annual_avg",
         "personalized_score",
     ]
     return {"results": jsonable_encoder(recs[columns].to_dict(orient="records"))}

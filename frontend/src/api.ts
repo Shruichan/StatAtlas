@@ -11,9 +11,17 @@ export interface Tract {
   quality_of_life_score: number;
   walkability_index: number;
   non_auto_share: number;
+  drive_alone_share?: number;
+  public_transit_share?: number;
+  active_commute_share?: number;
+  work_from_home_share?: number;
+  car_dependency_index?: number;
   nri_risk_score: number;
   nri_resilience_score: number;
   PollutionScore: number;
+  cdc_ozone_exceedance_days?: number;
+  cdc_pm25_person_days?: number;
+  cdc_pm25_annual_avg?: number;
   personalized_score?: number;
 }
 
@@ -28,6 +36,11 @@ export interface CountyStat {
   avg_ozone: number | null;
   avg_pm25: number | null;
   population: number | null;
+  avg_non_auto_share?: number | null;
+  avg_drive_alone_share?: number | null;
+  avg_transit_share?: number | null;
+  avg_active_commute_share?: number | null;
+  avg_work_from_home_share?: number | null;
 }
 
 export interface ClusterStat {
@@ -38,6 +51,27 @@ export interface ClusterStat {
   avg_walkability: number;
   avg_risk: number;
   avg_resilience: number;
+  avg_non_auto_share?: number;
+  avg_drive_alone_share?: number;
+  avg_transit_share?: number;
+  avg_active_commute_share?: number;
+  avg_work_from_home_share?: number;
+}
+
+export interface SummaryAggregates {
+  avg_walkability?: number;
+  avg_nri_risk?: number;
+  avg_resilience?: number;
+  avg_pollution?: number;
+  avg_quality?: number;
+  avg_ozone_days?: number;
+  avg_pm25_days?: number;
+  avg_non_auto_share?: number;
+  avg_drive_alone_share?: number;
+  avg_transit_share?: number;
+  avg_active_commute_share?: number;
+  avg_work_from_home_share?: number;
+  [key: string]: number | undefined;
 }
 
 export interface InsightMetadata {
@@ -55,7 +89,7 @@ export interface InsightMetadata {
 }
 
 export interface SummaryResponse {
-  aggregates: Record<string, number>;
+  aggregates: SummaryAggregates;
   metadata?: InsightMetadata;
   counties?: CountyStat[];
   clusters?: ClusterStat[];

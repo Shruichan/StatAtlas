@@ -69,6 +69,12 @@ header h1 {
   font-weight: 600;
 }
 
+.stat-detail {
+  margin: 0.15rem 0 0;
+  font-size: 0.85rem;
+  color: #64748b;
+}
+
 .map-wrapper {
   height: 420px;
   border-radius: 12px;
@@ -156,7 +162,12 @@ th {
   flex-wrap: wrap;
 }
 
-.map-layout .map-wrapper {
+.map-panel {
+  flex: 1;
+  position: relative;
+}
+
+.map-panel .map-wrapper {
   flex: 1;
 }
 
@@ -192,6 +203,21 @@ th {
 .sidebar-metrics {
   margin-bottom: 1rem;
   font-size: 0.95rem;
+}
+
+.sidebar-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin: 0.35rem 0 0.75rem;
+}
+
+.sidebar-pill {
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  border: 1px solid #cbd5f5;
+  background: #f8fafc;
+  font-size: 0.8rem;
 }
 
 .guidance-list {
@@ -273,6 +299,223 @@ th {
 
 .section-note {
   margin-top: 0.75rem;
+  font-size: 0.85rem;
+  color: #475569;
+}
+
+.map-legend {
+  position: absolute;
+  bottom: 1rem;
+  left: 1rem;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.85rem;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.12);
+}
+
+.map-legend p {
+  margin: 0 0 0.35rem;
+  font-weight: 600;
+}
+
+.legend-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.legend-stop {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.legend-swatch {
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  border: 1px solid rgba(15, 23, 42, 0.2);
+}
+
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: #0ea5e9;
+  text-decoration: none;
+  font-weight: 600;
+  margin-bottom: 1rem;
+}
+
+.stats-page {
+  padding-bottom: 2rem;
+}
+
+.stats-header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.stats-header .eyebrow {
+  text-transform: uppercase;
+  font-size: 0.8rem;
+  color: #64748b;
+  letter-spacing: 0.1em;
+  margin: 0 0 0.5rem;
+}
+
+.stats-header .subhead {
+  margin: 0.5rem 0 0;
+  font-size: 1rem;
+  color: #475569;
+}
+
+.stats-header-badges {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.stats-card-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  margin-bottom: 1.5rem;
+}
+
+.stats-card-grid.compact {
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+}
+
+.stats-card {
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 1rem;
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.08);
+}
+
+.stats-section {
+  margin-bottom: 2rem;
+}
+
+.guidance-table {
+  width: 100%;
+  border-collapse: collapse;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.guidance-table th,
+.guidance-table td {
+  padding: 0.75rem 0.85rem;
+  border-bottom: 1px solid #e2e8f0;
+  text-align: left;
+}
+
+.guidance-table th {
+  background: #f8fafc;
+  font-weight: 600;
+}
+
+.carousel-container {
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  background: #fff;
+  padding: 1rem;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.05);
+}
+
+.carousel-display {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.carousel-btn {
+  border: none;
+  background: #0ea5e9;
+  color: #fff;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 1rem;
+}
+
+.carousel-content {
+  flex: 1;
+  padding: 1rem;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+.carousel-content.status-good {
+  border: 1px solid #86efac;
+}
+
+.carousel-content.status-caution {
+  border: 1px solid #fcd34d;
+}
+
+.carousel-content.status-concern {
+  border: 1px solid #fca5a5;
+}
+
+.carousel-label {
+  margin: 0;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.carousel-value {
+  margin: 0.25rem 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.carousel-description {
+  margin: 0;
+  color: #475569;
+  font-size: 0.9rem;
+}
+
+.carousel-progress {
+  height: 6px;
+  background: #e2e8f0;
+  border-radius: 999px;
+  margin: 0.75rem 0;
+}
+
+.carousel-progress .progress-bar {
+  height: 100%;
+  border-radius: 999px;
+  background: #0ea5e9;
+}
+
+.carousel-progress .progress-good {
+  background: #16a34a;
+}
+
+.carousel-progress .progress-caution {
+  background: #f97316;
+}
+
+.carousel-progress .progress-concern {
+  background: #dc2626;
+}
+
+.carousel-indicator,
+.carousel-hint {
+  margin: 0;
   font-size: 0.85rem;
   color: #475569;
 }

@@ -3,34 +3,34 @@
 StatAtlas is a California-focused environmental intelligence platform. It blends CalEnviroScreen 4.0 polygons, ACS commute behavior (walkability / car-dependency proxy), FEMA National Risk Index scores, CDC air-quality metrics, WHO context, and lightweight machine learning.
 
 ## Features
-- **FastAPI backend (`backend/main.py`)** – exposes `/api/health`, `/api/tracts`, `/api/summary`, and `/api/recommendations`, suitable for any web/mobile client.
-- **React + Vite front-end (`frontend/`)** – modern SPA consuming the FastAPI endpoints; styled stat cards, quick recommendation buttons, and summary tables.
-- **Streamlit prototype (`src/app.py`)** – interactive map with FEMA/CDC overlays, personalized recommender sliders, and descriptive expanders.
-- **Data pipeline** – reproducible script downloads authoritative sources, derives walkability + FEMA + CDC features, and writes both GeoJSON and Parquet artifacts.
-- **Native acceleration** – the quality-of-life scorer runs via a small C helper (`src/c_extensions/qol_scores.c`) that compiles automatically.
+- **FastAPI backend (`backend/main.py`)** – exposes `/api/health`, `/api/tracts`, `/api/summary`, `/api/recommendations`, and `/api/geojson`, reusing the recommender shared with Streamlit.
+- **React + Vite front-end (`frontend/`)** – Node-powered SPA with router-based navigation, Leaflet choropleth map, tract search, statistics carousel, and statewide insight cards.
+- **Streamlit prototype (`src/app.py`)** – interactive notebook-style experience for quick hypothesis testing and slider-driven recommendations.
+- **Data pipeline (`src/data_pipeline`)** – reproducible jobs download CalEnviroScreen, ACS, FEMA, and CDC datasets, normalize the features, and emit both GeoJSON + Parquet artifacts.
+- **Hybrid tooling** – the quality-of-life scorer uses a tiny C extension (`src/c_extensions/qol_scores.c`), and Docker Compose can launch the full stack with one command.
 
 ## Quick start
 ```bash
-# Install dependencies (Python ≥ 3.10 recommended)
+# 1) Python env + backend deps (Python ≥ 3.10 recommended)
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 
-# Build datasets (downloads CalEnviroScreen + ACS/CDC/FEMA/WHO inputs)
+# 2) Build datasets (downloads CalEnviroScreen + ACS/CDC/FEMA/WHO inputs)
 python -m src.data_pipeline.build_dataset
 
-# Launch the Streamlit prototype
-streamlit run src/app.py
-
-# Or launch the production API
+# 3a) Launch the FastAPI backend
 uvicorn backend.main:app --reload
 
-# Front-end (React + Vite)
+# 3b) Launch the Streamlit prototype (optional)
+streamlit run src/app.py
+
+# 4) Front-end (React + Vite; Node 20.19+ recommended)
 cd frontend
 npm install
 npm run dev
 
-# All-in-one dev stack (backend + frontend)
+# 5) All-in-one dev stack (backend + frontend)
 ./scripts/run_stack.sh
 ```
 
@@ -47,7 +47,7 @@ docker compose up --build
 | --- | --- | 
 | Pollution, health burden | [CalEnviroScreen 4.0 Results](https://data.ca.gov/dataset/calenviroscreen-4-0-results) via ArcGIS REST API | 
 | Historical comparison | [CalEnviroScreen 3.0 Results](https://data.ca.gov/dataset/calenviroscreen-3-0-results) CSV | 
-| Walkability / car dependence | [ACS 2022 5-year (table B08301)](https://api.census.gov/data/2022/acs/acs5/groups/B08301.html) | 
+| Walkability / car dependence | [ACS 2019 5-year (table B08301)](https://api.census.gov/data/2019/acs/acs5/groups/B08301.html) | 
 | Hazard & resilience | [FEMA National Risk Index](https://hazards.fema.gov/nri/data-resources#csvDownload) | 
 | Air quality exceedances | [CDC Tracking Network air quality measures (cjae-szjv)](https://data.cdc.gov/Environmental-Health-Toxicology/Air-Quality-Measures-on-the-National-Environmental-H/cjae-szjv) | 
 | Global context | [WHO Air Quality Database 2022](https://www.who.int/data/gho/data/themes/air-pollution/who-air-quality-database/2022) |
@@ -85,4 +85,3 @@ docker compose up --build
 ## FastAPI backend
 - `uvicorn backend.main:app --reload` launches a production-ready API with `/api/health`, `/api/tracts`, `/api/summary`, and `/api/recommendations`.
 - The backend reuses the same recommendation engine as the Streamlit UI and powers the React SPA.
-

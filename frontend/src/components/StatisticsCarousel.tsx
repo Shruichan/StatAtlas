@@ -2,10 +2,10 @@ import { useState, useEffect } from "react";
 
 export interface Statistic {
   label: string;
-  value: number | string |null;
-  format: (val: number) => string;
+  value: number | string | null | undefined;
   description: string;
-  getColor?: (val: number) => "Good" | "Caution" | "Concern";
+  format?: (val: number) => string;
+  getColor?: (val: number) => "good" | "caution" | "concern";
 }
 
 interface StatisticsCarouselProps {
@@ -37,10 +37,20 @@ export function StatisticsCarousel({ stats }: StatisticsCarouselProps) {
 
   const current = stats[currentIndex];
   const progress = ((currentIndex + 1) / stats.length) * 100;
-  const statusColor =
-    current.value !== null && current.getColor
-      ? current.getColor(current.value)
+  const numericValue =
+    typeof current.value === "number" && Number.isFinite(current.value)
+      ? current.value
       : null;
+  const statusColor =
+    numericValue !== null && current.getColor
+      ? current.getColor(numericValue)
+      : null;
+  const displayValue =
+    numericValue !== null
+      ? current.format?.(numericValue) ?? numericValue.toString()
+      : typeof current.value === "string"
+        ? current.value
+        : "n/a";
 
   return (
     <div className="carousel-container">
@@ -57,11 +67,13 @@ export function StatisticsCarousel({ stats }: StatisticsCarouselProps) {
           ◀
         </button>
 
-        <div className={`carousel-content ${statusColor ? `status-${statusColor}` : ""}`}>
+        <div
+          className={`carousel-content ${
+            statusColor ? `status-${statusColor}` : ""
+          }`}
+        >
           <p className="carousel-label">{current.label}</p>
-          <p className="carousel-value">
-            {current.value !== null ? current.format(current.value) : "n/a"}
-          </p>
+          <p className="carousel-value">{displayValue}</p>
           <p className="carousel-description">{current.description}</p>
         </div>
 

@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import {useNavigate } from "react-router-dom";
+import { useCallback, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import type { GeoJsonObject } from "geojson";
 import type {
   Tract,
@@ -7,15 +7,10 @@ import type {
   ClusterStat,
   SummaryResponse,
 } from "../api";
-import {
-  fetchSummary,
-  fetchTracts,
-  fetchRecommendations,
-  fetchGeojson,
-} from "../api";
+import { fetchRecommendations } from "../api";
 import { MapView } from "../MapView";
 import type { FeatureProperties } from "../types";
-import 'bootstrap/dist/css/bootstrap.css'
+import "bootstrap/dist/css/bootstrap.css";
 
 
 const defaultWeights: Record<string, number> = {
@@ -43,6 +38,13 @@ function formatValue(value: number | null | undefined, digits = 2) {
   return Number(value).toFixed(digits);
 }
 
+function formatPercent(value: number | null | undefined, digits = 1) {
+  if (value === null || value === undefined || Number.isNaN(value)) {
+    return "n/a";
+  }
+  return `${(Number(value) * 100).toFixed(digits)}%`;
+}
+
 function toNumber(value: unknown): number | null {
   if (value === null || value === undefined) {
     return null;
@@ -55,63 +57,37 @@ function toNumber(value: unknown): number | null {
 }
 
 
-export function HomePage(props: { tracts: Tract[], loading: boolean, geojson: GeoJsonObject | null,
-   summary: SummaryResponse["aggregates"], countyStats: CountyStat[], clusterStats: ClusterStat[], 
-   metadata?: SummaryResponse["metadata"], onSelectFeature: (featureProps: FeatureProperties) => void, selectedFeature: FeatureProperties | null }) {
-  const [tracts, setTracts] = useState<Tract[]>([]);
-  const [summary, setSummary] = useState<SummaryResponse["aggregates"]>({});
-  const [metadata, setMetadata] = useState<SummaryResponse["metadata"]>();
-  const [loading, setLoading] = useState(true);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+interface HomePageProps {
+  tracts: Tract[];
+  loading: boolean;
+  geojson: GeoJsonObject | null;
+  summary: SummaryResponse["aggregates"];
+  countyStats: CountyStat[];
+  clusterStats: ClusterStat[];
+  metadata?: SummaryResponse["metadata"];
+  onSelectFeature: (featureProps: FeatureProperties) => void;
+  selectedFeature: FeatureProperties | null;
+}
+
+export function HomePage({
+  tracts,
+  loading,
+  geojson,
+  summary,
+  countyStats,
+  clusterStats,
+  metadata,
+  onSelectFeature,
+  selectedFeature,
+}: HomePageProps) {
   const [recommendations, setRecommendations] = useState<Tract[]>([]);
+  const [recommendationError, setRecommendationError] = useState<string | null>(
+    null,
+  );
   const [recsLoading, setRecsLoading] = useState(false);
   const [activeCountyFilter, setActiveCountyFilter] = useState<string | null>(
     null,
   );
-  const [geojson, setGeojson] = useState<GeoJsonObject | null>(null);
-  const [countyStats, setCountyStats] = useState<CountyStat[]>([]);
-  const [clusterStats, setClusterStats] = useState<ClusterStat[]>([]);
-  const [selectedFeature, setSelectedFeature] = useState<FeatureProperties | null>(
-    null,
-  );
-
-  useEffect(() => {
-    let mounted = true;
-    async function bootstrap() {
-      setLoading(true);
-      try {
-        const [tractList, summaryData, geojsonData] = await Promise.all([
-          fetchTracts(10000, 0),
-          fetchSummary(),
-          fetchGeojson(),
-        ]);
-
-        if (!mounted) return;
-        setTracts(tractList);
-        setSummary(summaryData.aggregates ?? {});
-        setMetadata(summaryData.metadata);
-        setCountyStats(summaryData.counties ?? []);
-        setClusterStats(summaryData.clusters ?? []);
-        setGeojson(geojsonData);
-        setErrorMessage(null);
-      } catch (error) {
-        console.error("Failed to load StatAtlas data", error);
-        if (mounted) {
-          setErrorMessage(
-            "Unable to reach the StatAtlas API. Ensure `uvicorn backend.main:app` is running.",
-          );
-        }
-      } finally {
-        if (mounted) {
-          setLoading(false);
-        }
-      }
-    }
-    bootstrap();
-    return () => {
-      mounted = false;
-    };
-  }, []);
 
   const counties = useMemo(
     () =>
@@ -204,13 +180,17 @@ export function HomePage(props: { tracts: Tract[], loading: boolean, geojson: Ge
   const whoContext = metadata?.who;
   const cdcContext = metadata?.cdc;
 
-  const handleFeatureSelect = useCallback((featureProps: FeatureProperties) => {
-    setSelectedFeature(featureProps ?? null);
-  }, []);
+  const handleFeatureSelect = useCallback(
+    (featureProps: FeatureProperties) => {
+      onSelectFeature(featureProps ?? null);
+    },
+    [onSelectFeature],
+  );
 
   const handleRecommend = useCallback(
     async (countyFilter: string | null) => {
       setRecsLoading(true);
+      setRecommendationError(null);
       setActiveCountyFilter(countyFilter);
       try {
         const result = await fetchRecommendations({
@@ -221,7 +201,7 @@ export function HomePage(props: { tracts: Tract[], loading: boolean, geojson: Ge
         setRecommendations(result);
       } catch (error) {
         console.error("Failed to fetch recommendations", error);
-        setErrorMessage("Could not fetch recommendations. Please try again.");
+        setRecommendationError("Could not fetch recommendations. Please try again.");
       } finally {
         setRecsLoading(false);
       }
@@ -230,7 +210,37 @@ export function HomePage(props: { tracts: Tract[], loading: boolean, geojson: Ge
   );
   const navigate = useNavigate();
 
-  let items = ["Home", "About", "Contact"];
+  const mobilityHighlights = [
+    {
+      label: "Non-Auto Share",
+      value: formatPercent(summary.avg_non_auto_share),
+    },
+    {
+      label: "Drive-Alone Share",
+      value: formatPercent(summary.avg_drive_alone_share),
+    },
+    {
+      label: "Transit Share",
+      value: formatPercent(summary.avg_transit_share),
+    },
+    {
+      label: "Active Commute",
+      value: formatPercent(summary.avg_active_commute_share),
+    },
+    {
+      label: "Work-From-Home",
+      value: formatPercent(summary.avg_work_from_home_share),
+    },
+  ];
+
+  const legendStops = [
+    { color: "#166534", label: "≥ 0.90" },
+    { color: "#22c55e", label: "0.70 – 0.89" },
+    { color: "#84cc16", label: "0.50 – 0.69" },
+    { color: "#f97316", label: "0.30 – 0.49" },
+    { color: "#dc2626", label: "< 0.30" },
+  ];
+
   return (
     <div className="container">
       <header>
@@ -240,28 +250,38 @@ export function HomePage(props: { tracts: Tract[], loading: boolean, geojson: Ge
         </p>
       </header>
 
-      {errorMessage && (
-        <div className="alert error" role="status">
-          {errorMessage}
-        </div>
-      )}
-
       {loading && <p className="loading">Loading StatAtlas…</p>}
 
       <section>
         <h2>California Map</h2>
         <div className="map-layout">
-          <MapView
-            data={geojson}
-            selectedGeoid={selectedFeature?.geoid ?? null}
-            onSelectFeature={handleFeatureSelect}
-          />
+          <div className="map-panel">
+            <MapView
+              data={geojson}
+              selectedGeoid={selectedFeature?.geoid ?? null}
+              onSelectFeature={handleFeatureSelect}
+            />
+            <div className="map-legend">
+              <p>QoL score</p>
+              <div className="legend-rows">
+                {legendStops.map((stop) => (
+                  <div key={stop.label} className="legend-stop">
+                    <span
+                      className="legend-swatch"
+                      style={{ backgroundColor: stop.color }}
+                    />
+                    <span>{stop.label}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
           <aside className={`map-sidebar ${selectedFeature ? "open" : ""}`}>
             {selectedFeature ? (
               <>
                 <div className="sidebar-header">
                   <h3>{selectedCounty ?? "Unknown county"}</h3>
-                  <button onClick={() => setSelectedFeature(null)}>Close</button>
+                  <button onClick={() => onSelectFeature(null)}>Close</button>
                 </div>
                 <p>
                   Tract <strong>{selectedFeature.geoid}</strong> · Cluster{" "}
@@ -284,6 +304,17 @@ export function HomePage(props: { tracts: Tract[], loading: boolean, geojson: Ge
                       3,
                     )}
                   </p>
+                  <div className="sidebar-grid">
+                    <span className="sidebar-pill">
+                      Non-auto {formatPercent(toNumber(selectedFeature.non_auto_share))}
+                    </span>
+                    <span className="sidebar-pill">
+                      Transit {formatPercent(toNumber(selectedFeature.public_transit_share))}
+                    </span>
+                    <span className="sidebar-pill">
+                      Drive-alone {formatPercent(toNumber(selectedFeature.drive_alone_share))}
+                    </span>
+                  </div>
                   {selectedCountyStats && (
                     <>
                       <p>
@@ -380,6 +411,17 @@ export function HomePage(props: { tracts: Tract[], loading: boolean, geojson: Ge
               value={formatValue(summary.avg_ozone_days, 1)}
             />
           )}
+          {summary.avg_pm25_days !== undefined && (
+            <StatCard
+              label="Avg PM2.5 Person-Days"
+              value={formatValue(summary.avg_pm25_days, 0)}
+            />
+          )}
+        </div>
+        <div className="stats-grid compact">
+          {mobilityHighlights.map((item) => (
+            <StatCard key={item.label} label={item.label} value={item.value} />
+          ))}
         </div>
         {cdcContext?.cdc_latest_year && (
           <p className="section-note">
@@ -453,6 +495,11 @@ export function HomePage(props: { tracts: Tract[], loading: boolean, geojson: Ge
             </button>
           ))}
         </div>
+        {recommendationError && (
+          <div className="alert error" role="status">
+            {recommendationError}
+          </div>
+        )}
         {recsLoading && <p className="loading">Building personalized list…</p>}
         {recommendations.length > 0 && (
           <div className="table-wrapper">

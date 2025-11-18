@@ -36,7 +36,8 @@ CALENVIROSCREEN_URL = (
     "https://services1.arcgis.com/PCHfdHz4GlDNAhBb/arcgis/rest/services/"
     "CalEnviroScreen_4_0_Results_/FeatureServer/0/query"
 )
-ACS_API = "https://api.census.gov/data/2022/acs/acs5"
+ACS_DATASET_YEAR = "2019"
+ACS_API = f"https://api.census.gov/data/{ACS_DATASET_YEAR}/acs/acs5"
 FEMA_NRI_ZIP_URL = (
     "https://hazards.fema.gov/nri/Content/StaticDocuments/DataDownload//"
     "NRI_Table_CensusTracts/NRI_Table_CensusTracts_California.zip"
@@ -287,7 +288,29 @@ def fetch_acs_commute() -> pd.DataFrame:
     df[numeric_cols] = df[numeric_cols].apply(pd.to_numeric, errors="coerce")
 
     df["geoid"] = df["state"] + df["county"] + df["tract"]
-    df["county_name"] = df["NAME"].str.split(";").str[1].str.strip()
+
+    def infer_county(name: Any) -> str | None:
+        if not isinstance(name, str):
+            return None
+        normalized = name.strip()
+        if not normalized:
+            return None
+        if ";" in normalized:
+            parts = [part.strip() for part in normalized.split(";") if part.strip()]
+            for part in parts:
+                if part.endswith("County"):
+                    return part
+            if len(parts) >= 2:
+                return parts[1]
+        parts = [part.strip() for part in normalized.split(",") if part.strip()]
+        for part in parts:
+            if part.endswith("County"):
+                return part
+        if len(parts) >= 2:
+            return parts[1]
+        return None
+
+    df["county_name"] = df["NAME"].apply(infer_county)
     df["county_fips"] = df["geoid"].astype(str).str[:5]
 
     total = df["B08301_001E"].replace({0: np.nan})
@@ -472,6 +495,10 @@ def build_features(
 
     if "county_fips" not in merged.columns:
         merged["county_fips"] = merged["geoid"].astype(str).str[:5]
+    else:
+        merged["county_fips"] = merged["county_fips"].fillna(
+            merged["geoid"].astype(str).str[:5]
+        )
     county_lookup = (
         commute_df.drop_duplicates("county_fips")
         .set_index("county_fips")["county_name"]
@@ -486,6 +513,41 @@ def build_features(
     merged["ces_score_delta"] = merged["CIscore"] - merged["ces3_score"]
     merged["who_pm25_state_avg"] = who_metrics.get("california_pm25_mean")
     merged["pm25_gap_vs_who_ca"] = merged["pm"] - merged["who_pm25_state_avg"]
+
+    def fill_by_county(df: pd.DataFrame, columns: List[str]) -> None:
+        for col in columns:
+            if col not in df.columns:
+                continue
+            grouped = df.groupby("county_name")[col]
+            df[col] = grouped.transform(
+                lambda series: series.fillna(
+                    series.dropna().median() if not series.dropna().empty else np.nan
+                )
+            )
+            state_median = df[col].dropna().median()
+            if pd.isna(state_median):
+                state_median = 0.0
+            df[col] = df[col].fillna(state_median)
+
+    fill_by_county(
+        merged,
+        [
+            "walkability_index",
+            "non_auto_share",
+            "drive_alone_share",
+            "public_transit_share",
+            "bike_share",
+            "walk_share",
+            "work_from_home_share",
+            "active_commute_share",
+            "car_dependency_index",
+            "nri_risk_score",
+            "nri_resilience_score",
+            "cdc_ozone_exceedance_days",
+            "cdc_pm25_person_days",
+            "cdc_pm25_annual_avg",
+        ],
+    )
 
     positive_cols = [
         "walkability_index",
@@ -632,6 +694,8 @@ def export_outputs(df: pd.DataFrame) -> None:
                 "active_commute_share": row.get("active_commute_share"),
                 "drive_alone_share": row.get("drive_alone_share"),
                 "public_transit_share": row.get("public_transit_share"),
+                "work_from_home_share": row.get("work_from_home_share"),
+                "car_dependency_index": row.get("car_dependency_index"),
             }
         )
         geometry = row.get("geometry")
@@ -656,6 +720,11 @@ def export_outputs(df: pd.DataFrame) -> None:
             "avg_quality": float(df["quality_of_life_score"].mean()),
             "avg_ozone_days": float(df["cdc_ozone_exceedance_days"].mean()),
             "avg_pm25_days": float(df["cdc_pm25_person_days"].mean()),
+            "avg_non_auto_share": float(df["non_auto_share"].mean()),
+            "avg_drive_alone_share": float(df["drive_alone_share"].mean()),
+            "avg_transit_share": float(df["public_transit_share"].mean()),
+            "avg_active_commute_share": float(df["active_commute_share"].mean()),
+            "avg_work_from_home_share": float(df["work_from_home_share"].mean()),
         },
         "counties": (
             df.groupby("county_name")
@@ -669,6 +738,11 @@ def export_outputs(df: pd.DataFrame) -> None:
                 avg_ozone=("cdc_ozone_exceedance_days", "mean"),
                 avg_pm25=("cdc_pm25_person_days", "mean"),
                 population=("ACS2019TotalPop", "sum"),
+                avg_non_auto_share=("non_auto_share", "mean"),
+                avg_drive_alone_share=("drive_alone_share", "mean"),
+                avg_transit_share=("public_transit_share", "mean"),
+                avg_active_commute_share=("active_commute_share", "mean"),
+                avg_work_from_home_share=("work_from_home_share", "mean"),
             )
             .reset_index()
             .to_dict(orient="records")
@@ -682,6 +756,11 @@ def export_outputs(df: pd.DataFrame) -> None:
                 avg_walkability=("walkability_index", "mean"),
                 avg_risk=("nri_risk_score", "mean"),
                 avg_resilience=("nri_resilience_score", "mean"),
+                avg_non_auto_share=("non_auto_share", "mean"),
+                avg_drive_alone_share=("drive_alone_share", "mean"),
+                avg_transit_share=("public_transit_share", "mean"),
+                avg_active_commute_share=("active_commute_share", "mean"),
+                avg_work_from_home_share=("work_from_home_share", "mean"),
             )
             .reset_index()
             .to_dict(orient="records")

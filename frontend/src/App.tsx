@@ -28,9 +28,6 @@ function MainContent() {
   const [metadata, setMetadata] = useState<SummaryResponse["metadata"]>();
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [activeCountyFilter, setActiveCountyFilter] = useState<string | null>(
-    null,
-  );
   const [geojson, setGeojson] = useState<GeoJsonObject | null>(null);
   const [countyStats, setCountyStats] = useState<CountyStat[]>([]);
   const [clusterStats, setClusterStats] = useState<ClusterStat[]>([]);
@@ -80,7 +77,7 @@ function MainContent() {
     };
   }, []);
 
-  let items = ["Home", "About", "Contact"];
+  const items = ["Home", "About", "Contact"];
   return (
     <div className="container">
       <header>
@@ -96,7 +93,26 @@ function MainContent() {
           imageSrcPath={imagePath}
           navItems={items}
           tracts={tracts}
-          onSelectTract={(tract) => handleFeatureSelect({ geoid: tract.geoid, county_name: tract.county_name, walkability_index: tract.walkability_index, nri_risk_score: tract.nri_risk_score, nri_resilience_score: tract.nri_resilience_score, PollutionScore: tract.PollutionScore, quality_of_life_score: tract.quality_of_life_score, cluster_label: tract.cluster_label })}>
+          onSelectTract={(tract) =>
+            handleFeatureSelect({
+              geoid: tract.geoid,
+              county_name: tract.county_name,
+              walkability_index: tract.walkability_index,
+              non_auto_share: tract.non_auto_share,
+              drive_alone_share: tract.drive_alone_share,
+              public_transit_share: tract.public_transit_share,
+              active_commute_share: tract.active_commute_share,
+              work_from_home_share: tract.work_from_home_share,
+              nri_risk_score: tract.nri_risk_score,
+              nri_resilience_score: tract.nri_resilience_score,
+              PollutionScore: tract.PollutionScore,
+              quality_of_life_score: tract.quality_of_life_score,
+              cluster_label: tract.cluster_label,
+              cdc_ozone_exceedance_days: tract.cdc_ozone_exceedance_days,
+              cdc_pm25_person_days: tract.cdc_pm25_person_days,
+              cdc_pm25_annual_avg: tract.cdc_pm25_annual_avg,
+            })
+          }>
         </NavigationBar>
         <Routes>
           <Route
@@ -115,7 +131,17 @@ function MainContent() {
         />}   ></Route>
           <Route path="/about" element={<div>About StatAtlas...</div>} />
           <Route path="/contact" element={<div>Contact Creators...</div>} />
-          <Route path="/tract/:geoid/stats" element={<StatsPage tracts={tracts} />} />
+          <Route
+            path="/tract/:geoid/stats"
+            element={
+              <StatsPage
+                tracts={tracts}
+                countyStats={countyStats}
+                summary={summary}
+                metadata={metadata}
+              />
+            }
+          />
 
         </Routes>
       </div>
