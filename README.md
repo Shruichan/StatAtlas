@@ -11,21 +11,21 @@ StatAtlas is a California-focused environmental intelligence platform. It blends
 
 ## Quick start
 ```bash
-# 1) Install dependencies (Python ≥ 3.10 recommended)
+# Install dependencies (Python ≥ 3.10 recommended)
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 
-# 2) Build datasets (downloads CalEnviroScreen + ACS/CDC/FEMA/WHO inputs)
+# Build datasets (downloads CalEnviroScreen + ACS/CDC/FEMA/WHO inputs)
 python -m src.data_pipeline.build_dataset
 
-# 3a) Launch the Streamlit prototype
+# Launch the Streamlit prototype
 streamlit run src/app.py
 
-# 3b) Or launch the production API
+# Or launch the production API
 uvicorn backend.main:app --reload
 
-# 3c) Front-end (React + Vite)
+# Front-end (React + Vite)
 cd frontend
 npm install
 npm run dev
