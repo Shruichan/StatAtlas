@@ -61,11 +61,19 @@ export interface SummaryResponse {
   clusters?: ClusterStat[];
 }
 
-export async function fetchTracts(limit = 100) {
-  const { data } = await axios.get<{ results: Tract[] }>(`${API_BASE}/api/tracts`, {
-    params: { limit },
+export async function fetchTracts(limit = 100, offset = 0) {
+  const l = Math.min(10000, limit);
+  const o = Math.max(0, offset);
+  try{const { data } = await axios.get<{ results: Tract[] }>(`${API_BASE}/api/tracts`, {
+    params: { limit: l, offset: o },
+    validateStatus: (s) => s === 200,
   });
   return data.results;
+}catch(err: any){
+  const status = err?.response?.status;
+  const body = err?.response?.data ?? err?.response?.statusText ?? String(err);
+  throw new Error(`[fetchTract] ${status ?? 'ERR'}: ${JSON.stringify(body)}`)
+}
 }
 
 export async function fetchSummary() {
