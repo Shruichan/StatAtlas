@@ -309,7 +309,7 @@ export default function TractStatsPage({
       </Link>
       <div className="stats-header">
         <div>
-          <p className="eyebrow">Census tract {tract.geoid}</p>
+          <p className="eyebrow">{tract.tract_label ?? `Census tract ${tract.geoid}`}</p>
           <h1>{tract.county_name ?? "Unknown county"}</h1>
           <p className="subhead">
             Cluster: {tract.cluster_label ?? "Unclustered"} · Quality of Life{" "}

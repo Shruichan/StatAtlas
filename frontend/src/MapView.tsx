@@ -48,8 +48,10 @@ export function MapView({ data, selectedGeoid, onSelectFeature }: Props) {
             });
             const props = feature?.properties as FeatureProperties | undefined;
             const score = toNumber(props?.quality_of_life_score) ?? 0;
-            const label = props?.geoid ?? "Unknown tract";
-            layer.bindTooltip(`Tract ${label}<br/>QoL ${score.toFixed(2)}`, {
+            const label =
+              props?.tract_label ??
+              (props?.geoid ? `Tract ${props.geoid}` : "Unknown tract");
+            layer.bindTooltip(`${label}<br/>QoL ${score.toFixed(2)}`, {
               sticky: true,
             });
           }}
@@ -97,4 +99,3 @@ function toNumber(value: unknown): number | null {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : null;
 }
-

@@ -284,7 +284,10 @@ export function HomePage({
                   <button onClick={() => onSelectFeature(null)}>Close</button>
                 </div>
                 <p>
-                  Tract <strong>{selectedFeature.geoid}</strong> · Cluster{" "}
+                  <strong>
+                    {selectedFeature.tract_label ?? `Tract ${selectedFeature.geoid}`}
+                  </strong>{" "}
+                  · Cluster{" "}
                   {selectedFeature.cluster_label ?? "n/a"}
                 </p>
                 <div className="mt-2">
@@ -359,7 +362,7 @@ export function HomePage({
             <StatCard
               key={county.county_name}
               label={`${county.county_name}: QoL ${formatValue(county.avg_quality, 2)}`}
-              value={`Walk ${formatValue(county.avg_walkability, 2)} | Risk ${formatValue(county.avg_risk, 1)}`}
+              value={`Walk ${formatValue(county.avg_walkability, 2)} | Non-auto ${formatPercent(toNumber(county.avg_non_auto_share))}`}
             />
           ))}
         </div>
@@ -508,6 +511,7 @@ export function HomePage({
                 <tr>
                   <th>Tract</th>
                   <th>County</th>
+                  <th>Name</th>
                   <th>Cluster</th>
                   <th>QoL</th>
                   <th>Walkability</th>
@@ -520,6 +524,7 @@ export function HomePage({
                   <tr key={tract.geoid}>
                     <td>{tract.geoid}</td>
                     <td>{tract.county_name}</td>
+                    <td>{tract.tract_label ?? "—"}</td>
                     <td>{tract.cluster_label}</td>
                     <td>{tract.quality_of_life_score.toFixed(3)}</td>
                     <td>{tract.walkability_index.toFixed(3)}</td>

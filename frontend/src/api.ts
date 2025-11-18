@@ -7,6 +7,7 @@ const API_BASE = envBase && envBase.length > 0 ? envBase : "http://localhost:800
 export interface Tract {
   geoid: string;
   county_name: string;
+  tract_label?: string;
   cluster_label: string;
   quality_of_life_score: number;
   walkability_index: number;

@@ -91,6 +91,7 @@ def tracts(limit: int = Query(100, ge=1, le=1000000), offset: int = Query(0, ge=
     columns = [
         "geoid",
         "county_name",
+        "tract_label",
         "quality_of_life_score",
         "cluster_label",
         "walkability_index",
@@ -205,6 +206,7 @@ def recommendations(payload: RecommendationPayload) -> Dict:
     columns = [
         "geoid",
         "county_name",
+        "tract_label",
         "cluster_label",
         "quality_of_life_score",
         "walkability_index",

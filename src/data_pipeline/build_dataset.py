@@ -106,6 +106,8 @@ COMMUTE_KEEP_COLUMNS = [
     "geoid",
     "county_name",
     "county_fips",
+    "tract_name",
+    "tract_label",
     "drive_alone_share",
     "public_transit_share",
     "bike_share",
@@ -312,6 +314,13 @@ def fetch_acs_commute() -> pd.DataFrame:
 
     df["county_name"] = df["NAME"].apply(infer_county)
     df["county_fips"] = df["geoid"].astype(str).str[:5]
+    df["tract_name"] = df["NAME"].astype(str)
+    df["tract_label"] = (
+        df["NAME"]
+        .astype(str)
+        .str.replace(", California", "", regex=False)
+        .str.replace("Census Tract ", "Tract ", regex=False)
+    )
 
     total = df["B08301_001E"].replace({0: np.nan})
     df["drive_alone_share"] = df["B08301_003E"] / total
@@ -333,10 +342,11 @@ def fetch_acs_commute() -> pd.DataFrame:
 
     df["active_commute_share"] = df["walk_share"] + df["bike_share"]
     df["non_auto_share"] = 1 - df["drive_alone_share"]
+    df["non_auto_commute_share"] = (df["non_auto_share"] - df["work_from_home_share"]).clip(lower=0)
     df["walkability_index"] = (
-        0.4 * df["active_commute_share"]
-        + 0.4 * df["public_transit_share"]
-        + 0.2 * df["work_from_home_share"]
+        0.5 * df["active_commute_share"]
+        + 0.35 * df["public_transit_share"]
+        + 0.15 * df["non_auto_commute_share"]
     )
     df["car_dependency_index"] = df["drive_alone_share"]
 
@@ -657,6 +667,7 @@ def export_outputs(df: pd.DataFrame) -> None:
     keep_columns = [
         "geoid",
         "TractTXT",
+        "tract_label",
         "county_name",
         "ACS2019TotalPop",
         "CIscore",

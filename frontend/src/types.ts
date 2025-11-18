@@ -3,6 +3,7 @@ import type { Tract } from "./api";
 export type FeatureProperties = Partial<Tract> & {
   geoid?: string;
   county_name?: string | null;
+  tract_label?: string | null;
   cluster_label?: string | null;
   quality_of_life_score?: number | null;
   walkability_index?: number | null;

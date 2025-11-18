@@ -16,7 +16,7 @@ export function NavigationBar({ brandName, imageSrcPath, navItems = [], tracts =
     const [dropdownOpen, setDropdownOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [showSearchResults, setShowSearchResults] = useState(false);
-    const MODES = ['all','county', 'cluster', 'geoid'] as const;
+    const MODES = ['all','county', 'cluster', 'geoid', 'tract'] as const;
     type SearchMode = typeof MODES[number];
 
     const [searchMode, setSearchMode] = useState<SearchMode>('county');
@@ -39,6 +39,7 @@ export function NavigationBar({ brandName, imageSrcPath, navItems = [], tracts =
                 return normalize(t.county_name) + ' ' + normalize(t.geoid) + ' ' + normalize(t.cluster_label);
             case 'county': return normalize(t.county_name);
             case 'geoid': return normalize(t.geoid);
+            case 'tract': return normalize(t.tract_label) || normalize(t.geoid);
             case 'cluster': return normalize(t.cluster_label);
         }
     }
@@ -171,6 +172,7 @@ export function NavigationBar({ brandName, imageSrcPath, navItems = [], tracts =
                             <option value="county">County</option>
                             <option value="cluster">Cluster</option>
                             <option value="geoid">GeoID</option>
+                            <option value="tract">Tract Name</option>
                         </select>
 
                         <button className="btn btn-outline-success" type="submit">Search</button>
@@ -180,20 +182,20 @@ export function NavigationBar({ brandName, imageSrcPath, navItems = [], tracts =
                                 <div className="p-2">
                                     {searchResults.length > 0 ? (
                                         searchResults.map((tract) => (
-                                            <div
-                                                key={tract.geoid}
-                                                className="p-3 border-bottom cursor-pointer hover-highlight"
-                                                onClick={() => handleSelectResult(tract)}
-                                                style={{ cursor: 'pointer' }}
-                                            >
-                                                <div className="d-flex justify-content-between align-items-start">
-                                                    <div>
-                                                        <div className="fw-bold text-light">{tract.county_name}</div>
-                                                        <div className="small text-muted">Cluster {tract.cluster_label} • GEOID: {tract.geoid}</div>
-                                                    </div>
-                                                    <span className="badge bg-info text-dark ms-2">{getDirectionBadge(tract.geoid)}</span>
+                                        <div
+                                            key={tract.geoid}
+                                            className="p-3 border-bottom cursor-pointer hover-highlight"
+                                            onClick={() => handleSelectResult(tract)}
+                                            style={{ cursor: 'pointer' }}
+                                        >
+                                            <div className="d-flex justify-content-between align-items-start">
+                                                <div>
+                                                    <div className="fw-bold text-light">{tract.tract_label ?? `Tract ${tract.geoid}`}</div>
+                                                    <div className="small text-muted">{tract.county_name} • Cluster {tract.cluster_label} • GEOID: {tract.geoid}</div>
                                                 </div>
+                                                <span className="badge bg-info text-dark ms-2">{getDirectionBadge(tract.geoid)}</span>
                                             </div>
+                                        </div>
                                         ))
                                     ) : (
                                         <div className="p-3 text-muted text-center">No results found</div>
