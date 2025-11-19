@@ -5,9 +5,15 @@ StatAtlas is a California-focused environmental intelligence platform. It blends
 ## Features
 - **FastAPI backend (`backend/main.py`)** – exposes `/api/health`, `/api/tracts`, `/api/summary`, `/api/recommendations`, and `/api/geojson`, reusing the recommender shared with Streamlit.
 - **React + Vite front-end (`frontend/`)** – Node-powered SPA with router-based navigation, Leaflet choropleth map, tract search, statistics carousel, and statewide insight cards.
-- **Streamlit prototype (`src/app.py`)** – interactive notebook-style experience for quick hypothesis testing and slider-driven recommendations.
 - **Data pipeline (`src/data_pipeline`)** – reproducible jobs download CalEnviroScreen, ACS, FEMA, and CDC datasets, normalize the features, and emit both GeoJSON + Parquet artifacts.
 - **Hybrid tooling** – the quality-of-life scorer uses a tiny C extension (`src/c_extensions/qol_scores.c`), and Docker Compose can launch the full stack with one command.
+
+### Docker (full stack -- Reccomended)
+```bash
+docker compose up --build
+# backend available at http://localhost:8000, React preview at http://localhost:4173
+```
+
 
 ## Quick start
 ```bash
@@ -36,11 +42,6 @@ npm run dev
 
 > Tip: rerun `python -m src.data_pipeline.build_dataset --skip-download` to regenerate processed files from cached raw inputs in `data/raw/`.
 
-### Docker (full stack)
-```bash
-docker compose up --build
-# backend available at http://localhost:8000, React preview at http://localhost:4173
-```
 
 ## Data sources
 | Theme | Dataset |
