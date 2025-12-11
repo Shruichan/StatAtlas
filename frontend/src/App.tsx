@@ -12,11 +12,15 @@ import {
 import type { GeoJsonObject } from "geojson";
 
 import type { FeatureProperties } from "./types";
-import { NavigationBar } from "./components/NavigationBar";
+import { LabelLink, NavigationBar } from "./components/NavigationBar";
 import 'bootstrap/dist/css/bootstrap.css'
 import imagePath from './assets/logo-unsplash-olivier.jpg'
 import StatsPage from "./pages/StatsPage.tsx"
 import { HomePage } from "./pages/HomePage.tsx";
+import { AboutPage } from "./pages/AboutPage.tsx";
+import { ContactPage } from "./pages/ContactPage.tsx";
+import { TakeActionPage } from "./pages/TakeActionPage.tsx";
+
 
 export default function App() {
   return (<BrowserRouter><MainContent></MainContent></BrowserRouter>)
@@ -35,7 +39,7 @@ function MainContent() {
     null,
   );
 
-  const handleFeatureSelect = useCallback((featureProps: FeatureProperties) => {
+  const handleFeatureSelect = useCallback((featureProps: FeatureProperties| null) => {
     setSelectedFeature(featureProps ?? null);
   }, []);
 
@@ -77,7 +81,10 @@ function MainContent() {
     };
   }, []);
 
-  const items = ["Home", "About", "Contact"];
+  const items: LabelLink[] = [];
+  items.push({ label: "Home", pathTo: "/" });
+  items.push({ label: "About", pathTo: "/about" });
+  items.push({ label: "Contact", pathTo: "/contact" });
   return (
     <div className="container">
       <header>
@@ -117,24 +124,35 @@ function MainContent() {
         <Routes>
           <Route
             path="/" element={<HomePage
-            // Passing all necessary data/state as props
-            tracts={tracts}
-            loading={loading}
-            geojson={geojson}
-            summary={summary}
-            metadata={metadata}
-            countyStats={countyStats}
-            clusterStats={clusterStats}
-            // Also pass down the selector callback if HomePage needs it
-            onSelectFeature={handleFeatureSelect} 
-            selectedFeature={selectedFeature}
-        />}   ></Route>
-          <Route path="/about" element={<div>About StatAtlas...</div>} />
-          <Route path="/contact" element={<div>Contact Creators...</div>} />
+              // Passing all necessary data/state as props
+              tracts={tracts}
+              loading={loading}
+              geojson={geojson}
+              summary={summary}
+              metadata={metadata}
+              countyStats={countyStats}
+              clusterStats={clusterStats}
+              // Also pass down the selector callback if HomePage needs it
+              onSelectFeature={handleFeatureSelect}
+              selectedFeature={selectedFeature}
+            />}   ></Route>
+          <Route path="/about" element={<AboutPage />} />
+          <Route path="/contact" element={<ContactPage />} />
           <Route
             path="/tract/:geoid/stats"
             element={
               <StatsPage
+                tracts={tracts}
+                countyStats={countyStats}
+                summary={summary}
+                metadata={metadata}
+              />
+            }
+          />
+          <Route
+            path="/tract/:geoid/stats/takeaction"
+            element={
+              <TakeActionPage
                 tracts={tracts}
                 countyStats={countyStats}
                 summary={summary}

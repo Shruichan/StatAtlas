@@ -65,7 +65,7 @@ interface HomePageProps {
   countyStats: CountyStat[];
   clusterStats: ClusterStat[];
   metadata?: SummaryResponse["metadata"];
-  onSelectFeature: (featureProps: FeatureProperties) => void;
+  onSelectFeature: (featureProps: FeatureProperties | null) => void;
   selectedFeature: FeatureProperties | null;
 }
 

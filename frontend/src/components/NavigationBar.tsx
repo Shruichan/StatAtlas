@@ -1,16 +1,23 @@
 import { useState, useMemo } from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
 import type { Tract } from '../api';
 import '../styles.css'
+import { useNavigate } from 'react-router-dom';
+
+export interface LabelLink {
+    label: string;
+    pathTo: string;
+}
+
 interface NavigationBarProps {
     brandName: string;
     imageSrcPath: string;
-    navItems: typeof NavLink[];
+    navItems: LabelLink[];
     tracts?: Tract[];
     onSelectTract?: (tract: Tract) => void;
 }
 
 export function NavigationBar({ brandName, imageSrcPath, navItems = [], tracts = [], onSelectTract }: NavigationBarProps) {
+    const navigate = useNavigate();
     const [selectedIndex, setSelectedIndex] = useState(-1);
     const [isOpen, setIsOpen] = useState(false);
     const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -109,8 +116,8 @@ export function NavigationBar({ brandName, imageSrcPath, navItems = [], tracts =
 
                 <div className={`collapse navbar-collapse d-md-flex ${isOpen ? 'show' : ''}`} id="navbarSupportedContent">
                     <ul className="navbar-nav me-auto mb-2 mb-md-0 d-flex align-items-center flex-column flex-md-row w-100">
-                        {navItems.map((items, index) => (
-                            <li key={items}
+                        {navItems.map((item, index) => (
+                            <li key={item.pathTo}
                                 className="nav-item">
                                 <a
                                     className={selectedIndex === index ? "nav-link active fw-bold" : "nav-link"}
@@ -118,33 +125,14 @@ export function NavigationBar({ brandName, imageSrcPath, navItems = [], tracts =
                                     onClick={(e) => {
                                         e.preventDefault();
                                         setSelectedIndex(index);
+                                        navigate(item.pathTo);
                                         close();
                                     }}
                                 >
-                                    {items}
+                                    {item.label} 
                                 </a>
                             </li>
                         ))}
-
-                        <li className={"nav-item dropdown"}>
-                            <a
-                                className="nav-link dropdown-toggle"
-                                href="#"
-                                id="navbarDropdown"
-                                role="button"
-                                onClick={toggleDropdown}
-                                aria-haspopup="true"
-                                aria-expanded={dropdownOpen}
-                            >
-                                Dropdown
-                            </a>
-                            <div className={"dropdown-menu" + (dropdownOpen ? ' show' : '')} aria-labelledby="navbarDropdown">
-                                <a className="dropdown-item" href="#" onClick={(e) => e.preventDefault()}>Action</a>
-                                <a className="dropdown-item" href="#" onClick={(e) => e.preventDefault()}>Another action</a>
-                                <div className="dropdown-divider"></div>
-                                <a className="dropdown-item" href="#" onClick={(e) => e.preventDefault()}>Something else here</a>
-                            </div>
-                        </li>
                     </ul>
                     <form className="d-flex position-relative" onSubmit={(e) => {
                         e.preventDefault()

@@ -537,3 +537,17 @@ th {
   color: black;
   background-color: #f0f0f0;
 }
+
+.contact-person-row{
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+}
+
+.contact-img{
+  max-width: 380px;
+  height: 300px;
+  min-width: 0;
+  min-height: 0;
+  display: block;
+}

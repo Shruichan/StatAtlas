@@ -1,10 +1,10 @@
 import { useMemo } from "react";
-import { useParams, useLocation, Link } from "react-router-dom";
+import { useParams, useLocation, Link, useNavigate } from "react-router-dom";
 import type { Tract, CountyStat, SummaryResponse } from "../api";
 import { StatisticsCarousel } from "../components/StatisticsCarousel";
 import type { Statistic } from "../components/StatisticsCarousel";
 
-type FeatureLike = Pick<
+export type FeatureLike = Pick<
   Tract,
   | "geoid"
   | "county_name"
@@ -22,21 +22,22 @@ type FeatureLike = Pick<
   | "cdc_pm25_person_days"
   | "cdc_pm25_annual_avg"
   | "cluster_label"
+  | "tract_label"
 >;
 
-interface TractStatsPageProps {
+export interface TractStatsPageProps {
   tracts: Tract[];
   countyStats: CountyStat[];
   summary: SummaryResponse["aggregates"];
   metadata?: SummaryResponse["metadata"];
 }
 
-function safeNumber(value: unknown): number | null {
+export function safeNumber(value: unknown): number | null {
   if (typeof value !== "number") return null;
   return Number.isFinite(value) ? value : null;
 }
 
-function formatNumber(
+export function formatNumber(
   value: number | null | undefined,
   digits = 2,
   fallback = "n/a",
@@ -302,11 +303,21 @@ export default function TractStatsPage({
     },
   ];
 
+  const navigate = useNavigate();
   return (
     <div className="stats-page container">
       <Link className="back-link" to="/">
         ← Back to Explorer
       </Link>
+      <div className="mt-2">
+        <button
+          className="btn btn-outline-primary"
+          onClick={() => navigate(`/tract/${tract.geoid}/stats/takeaction`, {
+            state: { tract: tract }
+          })}>
+            Take Action!
+        </button>
+      </div>
       <div className="stats-header">
         <div>
           <p className="eyebrow">{tract.tract_label ?? `Census tract ${tract.geoid}`}</p>
