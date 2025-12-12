@@ -8,6 +8,7 @@ export type FeatureLike = Pick<
   Tract,
   | "geoid"
   | "county_name"
+  | "nearest_place"
   | "quality_of_life_score"
   | "walkability_index"
   | "non_auto_share"
@@ -18,6 +19,11 @@ export type FeatureLike = Pick<
   | "nri_risk_score"
   | "nri_resilience_score"
   | "PollutionScore"
+  | "pollution_percentile"
+  | "clean_air_index"
+  | "pollution_score_delta"
+  | "pollution_score_pct_change"
+  | "pollution_zscore"
   | "cdc_ozone_exceedance_days"
   | "cdc_pm25_person_days"
   | "cdc_pm25_annual_avg"
@@ -48,6 +54,19 @@ export function formatNumber(
   return Number(value).toFixed(digits);
 }
 
+export function formatDelta(
+  value: number | null | undefined,
+  digits = 2,
+  fallback = "n/a",
+) {
+  const numeric = safeNumber(value);
+  if (numeric === null) {
+    return fallback;
+  }
+  const sign = numeric >= 0 ? "+" : "";
+  return `${sign}${numeric.toFixed(digits)}`;
+}
+
 function formatPercent(value: number | null | undefined, digits = 1) {
   if (value === null || value === undefined || Number.isNaN(value)) {
     return "n/a";
@@ -65,9 +84,12 @@ export default function TractStatsPage({
   const { state } = useLocation() as { state?: { tract?: FeatureLike } };
 
   const tract = useMemo<FeatureLike | undefined>(() => {
+    const fullRecord = geoid ? tracts.find((t) => t.geoid === geoid) : undefined;
+    if (state?.tract && fullRecord) {
+      return { ...fullRecord, ...state.tract };
+    }
     if (state?.tract) return state.tract;
-    if (!geoid) return undefined;
-    return tracts.find((t) => t.geoid === geoid);
+    return fullRecord;
   }, [state, geoid, tracts]);
 
   const countyLookup = useMemo(() => {
@@ -93,6 +115,7 @@ export default function TractStatsPage({
     ? countyLookup[tract.county_name]
     : undefined;
   const statewideQuality = safeNumber(summary?.avg_quality);
+  const nearestPlace = tract.nearest_place || tract.tract_label || `Tract ${tract.geoid}`;
 
   const stats: Statistic[] = [
     {
@@ -136,6 +159,17 @@ export default function TractStatsPage({
       getColor: (val: number) => {
         if (val <= 0.5) return "good";
         if (val <= 0.7) return "caution";
+        return "concern";
+      },
+    },
+    {
+      label: "Car Dependency Index",
+      value: safeNumber(tract.car_dependency_index),
+      format: (val: number) => val.toFixed(2),
+      description: "Higher values indicate heavy reliance on personal vehicles.",
+      getColor: (val: number) => {
+        if (val <= 0.3) return "good";
+        if (val <= 0.6) return "caution";
         return "concern";
       },
     },
@@ -191,6 +225,28 @@ export default function TractStatsPage({
       },
     },
     {
+      label: "Pollution Percentile",
+      value: safeNumber(tract.pollution_percentile),
+      format: (val: number) => `${val.toFixed(1)} pctile`,
+      description: "Statewide percentile rank for CalEnviroScreen pollution burden.",
+      getColor: (val: number) => {
+        if (val <= 30) return "good";
+        if (val <= 70) return "caution";
+        return "concern";
+      },
+    },
+    {
+      label: "Pollution Trend vs CES 3.0",
+      value: safeNumber(tract.pollution_score_pct_change),
+      format: (val: number) => formatPercent(val, 1),
+      description: "Relative change in pollution burden compared to CalEnviroScreen 3.0.",
+      getColor: (val: number) => {
+        if (val <= 0) return "good";
+        if (val <= 0.15) return "caution";
+        return "concern";
+      },
+    },
+    {
       label: "Cluster Context",
       value: tract.cluster_label ?? "Unclustered",
       description: "Assigned statewide profile highlighting similar tract characteristics.",
@@ -198,6 +254,11 @@ export default function TractStatsPage({
   ];
 
   const quickCards = [
+    {
+      label: "Nearest Place",
+      value: nearestPlace,
+      detail: "Closest city/town to tract centroid",
+    },
     {
       label: "Walkability",
       value: formatNumber(safeNumber(tract.walkability_index), 3),
@@ -219,9 +280,24 @@ export default function TractStatsPage({
       detail: "CalEnviroScreen scale",
     },
     {
+      label: "Clean Air Index",
+      value: formatNumber(safeNumber(tract.clean_air_index), 3),
+      detail: "1 = cleanest (inverted pollution)",
+    },
+    {
+      label: "Pollution Percentile",
+      value: formatNumber(safeNumber(tract.pollution_percentile), 1),
+      detail: "Statewide percentile rank",
+    },
+    {
       label: "Non-Auto Share",
       value: formatPercent(safeNumber(tract.non_auto_share)),
       detail: "Transit + walking + biking + WFH",
+    },
+    {
+      label: "Car Dependency Index",
+      value: formatNumber(safeNumber(tract.car_dependency_index), 2),
+      detail: "Higher = more auto reliance",
     },
     {
       label: "Transit Share",
@@ -255,6 +331,24 @@ export default function TractStatsPage({
       label: "County Avg PM2.5",
       value: formatNumber(safeNumber(selectedCountyStats?.avg_pm25), 0),
       detail: "County context",
+    },
+  ];
+
+  const pollutionContext = [
+    {
+      label: "Δ vs CES 3.0",
+      value: formatDelta(safeNumber(tract.pollution_score_delta), 2),
+      detail: "Change in pollution burden since CES 3.0",
+    },
+    {
+      label: "Pollution % Change",
+      value: formatPercent(safeNumber(tract.pollution_score_pct_change)),
+      detail: "Relative change since CES 3.0",
+    },
+    {
+      label: "Pollution Z-Score",
+      value: formatNumber(safeNumber(tract.pollution_zscore), 2),
+      detail: "Std devs from statewide mean",
     },
   ];
 
@@ -326,6 +420,7 @@ export default function TractStatsPage({
             Cluster: {tract.cluster_label ?? "Unclustered"} · Quality of Life{" "}
             {formatNumber(safeNumber(tract.quality_of_life_score), 3)}
           </p>
+          <p className="section-note">Nearest place: {nearestPlace}</p>
           {statewideQuality !== null && (
             <p className="section-note">
               Statewide avg QoL {formatNumber(statewideQuality, 3)}
@@ -366,6 +461,19 @@ export default function TractStatsPage({
         </div>
       </section>
 
+      <section className="stats-section">
+        <h3>Pollution context</h3>
+        <div className="stats-card-grid compact">
+          {pollutionContext.map((card) => (
+            <div key={card.label} className="stats-card">
+              <p className="stat-label">{card.label}</p>
+              <p className="stat-value">{card.value}</p>
+              <p className="stat-detail">{card.detail}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
       {selectedCountyStats && (
         <section className="stats-section">
           <h3>County context</h3>
@@ -394,6 +502,24 @@ export default function TractStatsPage({
               <p className="stat-label">Avg FEMA Risk</p>
               <p className="stat-value">
                 {formatNumber(safeNumber(selectedCountyStats.avg_risk), 1)}
+              </p>
+            </div>
+            <div className="stats-card">
+              <p className="stat-label">Avg Pollution</p>
+              <p className="stat-value">
+                {formatNumber(safeNumber(selectedCountyStats.avg_pollution), 2)}
+              </p>
+            </div>
+            <div className="stats-card">
+              <p className="stat-label">Clean Air Index</p>
+              <p className="stat-value">
+                {formatNumber(safeNumber(selectedCountyStats.avg_clean_air_index), 3)}
+              </p>
+            </div>
+            <div className="stats-card">
+              <p className="stat-label">Pollution Percentile</p>
+              <p className="stat-value">
+                {formatNumber(safeNumber(selectedCountyStats.avg_pollution_percentile), 1)}
               </p>
             </div>
             <div className="stats-card">

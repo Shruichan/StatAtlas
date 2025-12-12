@@ -23,7 +23,7 @@ export function NavigationBar({ brandName, imageSrcPath, navItems = [], tracts =
     const [dropdownOpen, setDropdownOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [showSearchResults, setShowSearchResults] = useState(false);
-    const MODES = ['all','county', 'cluster', 'geoid', 'tract'] as const;
+    const MODES = ['all','county', 'cluster', 'geoid', 'tract', 'place'] as const;
     type SearchMode = typeof MODES[number];
 
     const [searchMode, setSearchMode] = useState<SearchMode>('county');
@@ -43,11 +43,12 @@ export function NavigationBar({ brandName, imageSrcPath, navItems = [], tracts =
     const fieldsForMode = (t: Tract, mode: SearchMode) => {
         switch (mode) {
             case 'all':
-                return normalize(t.county_name) + ' ' + normalize(t.geoid) + ' ' + normalize(t.cluster_label);
+                return normalize(t.county_name) + ' ' + normalize(t.geoid) + ' ' + normalize(t.cluster_label) + ' ' + normalize(t.nearest_place);
             case 'county': return normalize(t.county_name);
             case 'geoid': return normalize(t.geoid);
             case 'tract': return normalize(t.tract_label) || normalize(t.geoid);
             case 'cluster': return normalize(t.cluster_label);
+            case 'place': return normalize(t.nearest_place);
         }
     }
     const searchResults = useMemo(() => {
@@ -161,6 +162,7 @@ export function NavigationBar({ brandName, imageSrcPath, navItems = [], tracts =
                             <option value="cluster">Cluster</option>
                             <option value="geoid">GeoID</option>
                             <option value="tract">Tract Name</option>
+                            <option value="place">Nearest Place</option>
                         </select>
 
                         <button className="btn btn-outline-success" type="submit">Search</button>
@@ -180,6 +182,9 @@ export function NavigationBar({ brandName, imageSrcPath, navItems = [], tracts =
                                                 <div>
                                                     <div className="fw-bold text-light">{tract.tract_label ?? `Tract ${tract.geoid}`}</div>
                                                     <div className="small text-muted">{tract.county_name} • Cluster {tract.cluster_label} • GEOID: {tract.geoid}</div>
+                                                    {tract.nearest_place && (
+                                                        <div className="small text-muted">Near {tract.nearest_place}</div>
+                                                    )}
                                                 </div>
                                                 <span className="badge bg-info text-dark ms-2">{getDirectionBadge(tract.geoid)}</span>
                                             </div>

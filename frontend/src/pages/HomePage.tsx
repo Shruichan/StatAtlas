@@ -18,6 +18,7 @@ const defaultWeights: Record<string, number> = {
   non_auto_share_norm: 3.0,
   PollutionScore_norm: 2.5,
   traffic_norm: 2.0,
+  car_dependency_index_norm: 2.5,
   nri_resilience_score_norm: 3.0,
   nri_risk_score_norm: 2.0,
 };
@@ -287,6 +288,11 @@ export function HomePage({
                   <strong>
                     {selectedFeature.tract_label ?? `Tract ${selectedFeature.geoid}`}
                   </strong>{" "}
+                  {selectedFeature.nearest_place && (
+                    <>
+                      · Near {selectedFeature.nearest_place}{" "}
+                    </>
+                  )}
                   · Cluster{" "}
                   {selectedFeature.cluster_label ?? "n/a"}
                 </p>
@@ -301,11 +307,27 @@ export function HomePage({
                 </div>
                 <div className="sidebar-metrics">
                   <p>
+                    Nearest place:{" "}
+                    {selectedFeature.nearest_place ?? "n/a"}
+                  </p>
+                  <p>
                     Quality of Life Score:{" "}
                     {formatValue(
                       toNumber(selectedFeature.quality_of_life_score),
                       3,
                     )}
+                  </p>
+                  <p>
+                    Pollution percentile:{" "}
+                    {formatValue(toNumber(selectedFeature.pollution_percentile), 1)}
+                  </p>
+                  <p>
+                    Clean air index:{" "}
+                    {formatValue(toNumber(selectedFeature.clean_air_index), 3)}
+                  </p>
+                  <p>
+                    Pollution trend vs CES 3.0:{" "}
+                    {formatPercent(toNumber(selectedFeature.pollution_score_pct_change))}
                   </p>
                   <div className="sidebar-grid">
                     <span className="sidebar-pill">
@@ -375,7 +397,7 @@ export function HomePage({
             {featuredTracts.map((tract) => (
               <StatCard
                 key={tract.geoid}
-                label={`${tract.county_name} · ${tract.geoid}`}
+                label={`${tract.county_name} · ${tract.nearest_place ?? tract.tract_label ?? tract.geoid}`}
                 value={`QoL ${tract.quality_of_life_score.toFixed(3)} | Walk ${tract.walkability_index.toFixed(3)}`}
               />
             ))}
@@ -402,6 +424,20 @@ export function HomePage({
             label="Avg Pollution"
             value={formatValue(summary.avg_pollution, 2)}
           />
+          <StatCard
+            label="Avg Pollution Percentile"
+            value={formatValue(summary.avg_pollution_percentile, 1)}
+          />
+          <StatCard
+            label="Avg Clean Air Index"
+            value={formatValue(summary.avg_clean_air_index, 3)}
+          />
+          {summary.avg_pollution_delta !== undefined && (
+            <StatCard
+              label="Avg Pollution Δ vs CES 3.0"
+              value={formatValue(summary.avg_pollution_delta, 2)}
+            />
+          )}
           {summary.avg_quality !== undefined && (
             <StatCard
               label="Avg QoL"
@@ -524,7 +560,7 @@ export function HomePage({
                   <tr key={tract.geoid}>
                     <td>{tract.geoid}</td>
                     <td>{tract.county_name}</td>
-                    <td>{tract.tract_label ?? "—"}</td>
+                    <td>{tract.nearest_place ?? tract.tract_label ?? "—"}</td>
                     <td>{tract.cluster_label}</td>
                     <td>{tract.quality_of_life_score.toFixed(3)}</td>
                     <td>{tract.walkability_index.toFixed(3)}</td>

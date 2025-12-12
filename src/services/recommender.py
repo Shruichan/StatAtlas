@@ -10,6 +10,7 @@ import pandas as pd
 RECOMMENDATION_FEATURES: Dict[str, str] = {
     "walkability_index_norm": "Prioritize walkability & transit access",
     "non_auto_share_norm": "Prefer communities with low car dependence",
+    "car_dependency_index_norm": "Avoid car dependency",
     "PollutionScore_norm": "Avoid pollution burden",
     "traffic_norm": "Avoid high traffic volumes",
     "asthma_norm": "Seek lower asthma burdens",
@@ -26,6 +27,7 @@ DEFAULT_WEIGHT_HINTS: Dict[str, float] = {
     "non_auto_share_norm": 3.0,
     "nri_resilience_score_norm": 3.0,
     "ces_score_delta_norm": 3.0,
+    "car_dependency_index_norm": 3.0,
 }
 
 

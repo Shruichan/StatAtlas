@@ -11,3 +11,4 @@ pydeck
 openpyxl
 fastapi
 uvicorn
+reverse_geocoder

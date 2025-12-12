@@ -23,6 +23,10 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
 from tqdm import tqdm
 
+try:
+    import reverse_geocoder as rg  # type: ignore
+except Exception:  # pragma: no cover - optional dependency
+    rg = None
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 RAW_DIR = PROJECT_ROOT / "data" / "raw"
@@ -502,6 +506,7 @@ def build_features(
     merged = ces_df.merge(commute_df, on="geoid", how="left")
     merged = merged.merge(fema_df, on="geoid", how="left")
     merged = merged.merge(ces3_df, on="geoid", how="left")
+    merged["nearest_place"] = None
 
     if "county_fips" not in merged.columns:
         merged["county_fips"] = merged["geoid"].astype(str).str[:5]
@@ -559,6 +564,23 @@ def build_features(
         ],
     )
 
+    if rg is not None and "centroid_lat" in merged and "centroid_lon" in merged:
+        valid_mask = merged[["centroid_lat", "centroid_lon"]].applymap(np.isfinite).all(axis=1)
+        coords: List[Tuple[float, float]] = list(
+            zip(merged.loc[valid_mask, "centroid_lat"], merged.loc[valid_mask, "centroid_lon"])
+        )
+        if coords:
+            lookup_results = rg.search(coords, mode=1)
+            nearest_strings: Dict[int, str] = {}
+            for idx, res in zip(merged.loc[valid_mask].index, lookup_results):
+                city = res.get("name")
+                admin2 = res.get("admin2")
+                admin1 = res.get("admin1")
+                parts = [p for p in (city, admin2, admin1) if p]
+                nearest_strings[idx] = ", ".join(parts)
+            merged.loc[valid_mask, "nearest_place"] = merged.loc[valid_mask].index.map(nearest_strings.get)
+    merged["nearest_place"] = merged["nearest_place"].fillna(merged.get("county_name"))
+
     positive_cols = [
         "walkability_index",
         "non_auto_share",
@@ -573,6 +595,7 @@ def build_features(
         "nri_risk_score",
         "cdc_ozone_exceedance_days",
         "cdc_pm25_person_days",
+        "car_dependency_index",
     ]
 
     for col in positive_cols:
@@ -583,17 +606,34 @@ def build_features(
         if col in merged:
             merged[f"{col}_norm"] = 1 - normalize(merged[col].fillna(merged[col].median()))
 
+    if "PollutionP" in merged.columns:
+        merged["pollution_percentile"] = merged["PollutionP"]
+    if "PollutionScore_norm" in merged.columns:
+        merged["clean_air_index"] = merged["PollutionScore_norm"]
+    if "ces3_pollution_score" in merged.columns and "PollutionScore" in merged.columns:
+        merged["pollution_score_delta"] = merged["PollutionScore"] - merged["ces3_pollution_score"]
+        denom = merged["ces3_pollution_score"].replace({0: np.nan})
+        merged["pollution_score_pct_change"] = merged["pollution_score_delta"] / denom
+    if "PollutionScore" in merged.columns:
+        pollution_std = merged["PollutionScore"].std(ddof=0)
+        pollution_mean = merged["PollutionScore"].mean()
+        if pollution_std and not (isinstance(pollution_std, float) and math.isnan(pollution_std)):
+            merged["pollution_zscore"] = (merged["PollutionScore"] - pollution_mean) / pollution_std
+        else:
+            merged["pollution_zscore"] = 0.0
+
     weights = {
-        "walkability_index_norm": 0.18,
+        "walkability_index_norm": 0.25,
         "non_auto_share_norm": 0.12,
-        "nri_resilience_score_norm": 0.13,
-        "ces_score_delta_norm": 0.07,
-        "PollutionScore_norm": 0.18,
-        "traffic_norm": 0.1,
-        "cdc_ozone_exceedance_days_norm": 0.07,
-        "cdc_pm25_person_days_norm": 0.07,
-        "asthma_norm": 0.04,
-        "pov_norm": 0.04,
+        "nri_resilience_score_norm": 0.12,
+        "ces_score_delta_norm": 0.05,
+        "PollutionScore_norm": 0.16,
+        "traffic_norm": 0.08,
+        "car_dependency_index_norm": 0.06,
+        "cdc_ozone_exceedance_days_norm": 0.06,
+        "cdc_pm25_person_days_norm": 0.06,
+        "asthma_norm": 0.02,
+        "pov_norm": 0.02,
     }
     for col in weights:
         if col not in merged:
@@ -606,6 +646,26 @@ def build_features(
         merged["quality_of_life_score"] = native_scores
     else:
         merged["quality_of_life_score"] = qol_matrix.dot(weight_vector)
+
+    walk_penalty = np.ones(len(merged))
+    if "walkability_index" in merged:
+        walk_penalty = np.where(
+            merged["walkability_index"] < 0.02,
+            0.4,
+            np.where(merged["walkability_index"] < 0.05, 0.7, 1.0),
+        )
+    car_penalty = np.ones(len(merged))
+    if "drive_alone_share" in merged:
+        car_penalty = np.where(
+            merged["drive_alone_share"] > 0.7,
+            0.5,
+            np.where(merged["drive_alone_share"] > 0.6, 0.7, 1.0),
+        )
+    merged["quality_of_life_score"] = (
+        merged["quality_of_life_score"] * walk_penalty * car_penalty
+    ).clip(lower=0, upper=1)
+    if "walkability_index_norm" in merged:
+        merged["quality_of_life_score"] = merged[["quality_of_life_score", "walkability_index_norm"]].min(axis=1)
 
     feature_cols = [
         "PollutionScore",
@@ -668,12 +728,18 @@ def export_outputs(df: pd.DataFrame) -> None:
         "geoid",
         "TractTXT",
         "tract_label",
+        "nearest_place",
         "county_name",
         "ACS2019TotalPop",
         "CIscore",
         "CIscoreP",
         "PollutionScore",
         "PollutionP",
+        "pollution_percentile",
+        "clean_air_index",
+        "pollution_score_delta",
+        "pollution_score_pct_change",
+        "pollution_zscore",
         "traffic",
         "trafficP",
         "asthma",
@@ -728,6 +794,10 @@ def export_outputs(df: pd.DataFrame) -> None:
             "avg_nri_risk": float(df["nri_risk_score"].mean()),
             "avg_resilience": float(df["nri_resilience_score"].mean()),
             "avg_pollution": float(df["PollutionScore"].mean()),
+            "avg_pollution_percentile": float(df["pollution_percentile"].mean()),
+            "avg_clean_air_index": float(df["clean_air_index"].mean()),
+            "avg_pollution_delta": float(df["pollution_score_delta"].mean()),
+            "avg_pollution_pct_change": float(df["pollution_score_pct_change"].mean()),
             "avg_quality": float(df["quality_of_life_score"].mean()),
             "avg_ozone_days": float(df["cdc_ozone_exceedance_days"].mean()),
             "avg_pm25_days": float(df["cdc_pm25_person_days"].mean()),
@@ -746,6 +816,10 @@ def export_outputs(df: pd.DataFrame) -> None:
                 avg_risk=("nri_risk_score", "mean"),
                 avg_resilience=("nri_resilience_score", "mean"),
                 avg_pollution=("PollutionScore", "mean"),
+                avg_pollution_percentile=("pollution_percentile", "mean"),
+                avg_clean_air_index=("clean_air_index", "mean"),
+                avg_pollution_delta=("pollution_score_delta", "mean"),
+                avg_pollution_pct_change=("pollution_score_pct_change", "mean"),
                 avg_ozone=("cdc_ozone_exceedance_days", "mean"),
                 avg_pm25=("cdc_pm25_person_days", "mean"),
                 population=("ACS2019TotalPop", "sum"),
@@ -764,6 +838,10 @@ def export_outputs(df: pd.DataFrame) -> None:
                 tracts=("geoid", "count"),
                 avg_quality=("quality_of_life_score", "mean"),
                 avg_pollution=("PollutionScore", "mean"),
+                avg_pollution_percentile=("pollution_percentile", "mean"),
+                avg_clean_air_index=("clean_air_index", "mean"),
+                avg_pollution_delta=("pollution_score_delta", "mean"),
+                avg_pollution_pct_change=("pollution_score_pct_change", "mean"),
                 avg_walkability=("walkability_index", "mean"),
                 avg_risk=("nri_risk_score", "mean"),
                 avg_resilience=("nri_resilience_score", "mean"),

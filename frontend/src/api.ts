@@ -7,6 +7,7 @@ const API_BASE = envBase && envBase.length > 0 ? envBase : "http://localhost:800
 export interface Tract {
   geoid: string;
   county_name: string;
+  nearest_place?: string;
   tract_label?: string;
   cluster_label: string;
   quality_of_life_score: number;
@@ -20,6 +21,11 @@ export interface Tract {
   nri_risk_score: number;
   nri_resilience_score: number;
   PollutionScore: number;
+  pollution_percentile?: number;
+  clean_air_index?: number;
+  pollution_score_delta?: number;
+  pollution_score_pct_change?: number;
+  pollution_zscore?: number;
   cdc_ozone_exceedance_days?: number;
   cdc_pm25_person_days?: number;
   cdc_pm25_annual_avg?: number;
@@ -34,6 +40,10 @@ export interface CountyStat {
   avg_risk: number | null;
   avg_resilience: number | null;
   avg_pollution: number | null;
+  avg_pollution_percentile?: number | null;
+  avg_clean_air_index?: number | null;
+  avg_pollution_delta?: number | null;
+  avg_pollution_pct_change?: number | null;
   avg_ozone: number | null;
   avg_pm25: number | null;
   population: number | null;
@@ -49,6 +59,10 @@ export interface ClusterStat {
   tracts: number;
   avg_quality: number;
   avg_pollution: number;
+  avg_pollution_percentile?: number;
+  avg_clean_air_index?: number;
+  avg_pollution_delta?: number;
+  avg_pollution_pct_change?: number;
   avg_walkability: number;
   avg_risk: number;
   avg_resilience: number;
@@ -64,6 +78,10 @@ export interface SummaryAggregates {
   avg_nri_risk?: number;
   avg_resilience?: number;
   avg_pollution?: number;
+  avg_pollution_percentile?: number;
+  avg_clean_air_index?: number;
+  avg_pollution_delta?: number;
+  avg_pollution_pct_change?: number;
   avg_quality?: number;
   avg_ozone_days?: number;
   avg_pm25_days?: number;

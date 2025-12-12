@@ -13,9 +13,12 @@ export function TakeActionPage({
     const { state } = useLocation() as { state?: { tract?: FeatureLike } };
 
     const tract = useMemo<FeatureLike | undefined>(() => {
-        if (state?.tract) return state.tract;
-        if (!geoid) return undefined;
-        return tracts.find((t) => t.geoid === geoid);
+        const fullRecord = geoid ? tracts.find((t) => t.geoid === geoid) : undefined;
+        if (state?.tract && fullRecord) {
+            return { ...fullRecord, ...state.tract };
+        }
+    if (state?.tract) return state.tract;
+    return fullRecord;
     }, [state, geoid, tracts]);
 
     const countyLookup = useMemo(() => {
@@ -62,6 +65,9 @@ export function TakeActionPage({
                         Cluster: {tract.cluster_label ?? "Unclustered"} · Quality of Life{" "}
                         {formatNumber(safeNumber(tract.quality_of_life_score), 3)}
                     </p>
+                    {tract.nearest_place && (
+                        <p className="section-note">Nearest place: {tract.nearest_place}</p>
+                    )}
                     {statewideQuality !== null && (
                         <p className="section-note">
                             Statewide avg QoL {formatNumber(statewideQuality, 3)}

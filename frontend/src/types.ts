@@ -3,6 +3,7 @@ import type { Tract } from "./api";
 export type FeatureProperties = Partial<Tract> & {
   geoid?: string;
   county_name?: string | null;
+  nearest_place?: string | null;
   tract_label?: string | null;
   cluster_label?: string | null;
   quality_of_life_score?: number | null;
@@ -15,6 +16,11 @@ export type FeatureProperties = Partial<Tract> & {
   nri_risk_score?: number | null;
   nri_resilience_score?: number | null;
   PollutionScore?: number | null;
+  pollution_percentile?: number | null;
+  clean_air_index?: number | null;
+  pollution_score_delta?: number | null;
+  pollution_score_pct_change?: number | null;
+  pollution_zscore?: number | null;
   cdc_ozone_exceedance_days?: number | null;
   cdc_pm25_person_days?: number | null;
   cdc_pm25_annual_avg?: number | null;

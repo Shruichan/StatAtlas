@@ -39,9 +39,21 @@ function MainContent() {
     null,
   );
 
-  const handleFeatureSelect = useCallback((featureProps: FeatureProperties| null) => {
-    setSelectedFeature(featureProps ?? null);
-  }, []);
+  const handleFeatureSelect = useCallback(
+    (featureProps: FeatureProperties | null) => {
+      if (!featureProps?.geoid) {
+        setSelectedFeature(featureProps ?? null);
+        return;
+      }
+      const fullRecord = tracts.find((t) => t.geoid === featureProps.geoid);
+      if (fullRecord) {
+        setSelectedFeature({ ...fullRecord, ...featureProps });
+      } else {
+        setSelectedFeature(featureProps);
+      }
+    },
+    [tracts],
+  );
 
   useEffect(() => {
     let mounted = true;
@@ -113,7 +125,14 @@ function MainContent() {
               nri_risk_score: tract.nri_risk_score,
               nri_resilience_score: tract.nri_resilience_score,
               PollutionScore: tract.PollutionScore,
+              nearest_place: tract.nearest_place,
+              pollution_percentile: tract.pollution_percentile,
+              clean_air_index: tract.clean_air_index,
+              pollution_score_delta: tract.pollution_score_delta,
+              pollution_score_pct_change: tract.pollution_score_pct_change,
+              pollution_zscore: tract.pollution_zscore,
               quality_of_life_score: tract.quality_of_life_score,
+              tract_label: tract.tract_label,
               cluster_label: tract.cluster_label,
               cdc_ozone_exceedance_days: tract.cdc_ozone_exceedance_days,
               cdc_pm25_person_days: tract.cdc_pm25_person_days,
